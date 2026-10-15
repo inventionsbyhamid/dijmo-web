@@ -21,7 +21,7 @@ The only other colour on the page comes from the video frame: a coast at golden 
 - **One family:** Schibsted Grotesk, the variable font limited to weights 400–700, Latin subset, self-hosted woff2 (SIL OFL 1.1).
   - It was chosen for the approved prototype. It's a newsroom grotesk: sober, slightly condensed, and warm without being cute.
 - **Scale:** perfect fourth (1.333), fluid with `clamp()`. Body 18 px.
-  - Statements are 42–88 px at weight 500, with −0.035 em tracking and 1.02 leading.
+  - Statements are 32–60 px, and the headline and the turn are 40–88 px. Both use weight 500, with −0.04 em tracking and 1.0–1.04 leading.
   - Quiet lines are 18–24 px at weight 400.
 - **Type does the work:**
   - Sentences type themselves, letter by letter, with the caret leading.
@@ -122,7 +122,30 @@ With `prefers-reduced-motion`, there is no typing, no loop and no haptics; the f
   - I dropped a scroll-progress bar: the playhead appears only where it means something.
 
 ## Sound sources
-(Filled in once the sounds are made: generator, prompt and licence note.)
+All three sounds come from the **ElevenLabs Sound Effects API** (`POST /v1/sound-generation`). I generated 11 candidates: three typing takes, two single keys, three thocks and three ticks.
+
+I chose by analysis rather than by ear: onsets, tail length and spectral centroid. Soft keys sit at a 1.9–3.2 kHz centroid; the deep thock is about 630 Hz.
+
+- **Keys, eight variants:** sliced from one typing take, so they share one keyboard's character.
+  - Prompt: "Unhurried ASMR typing on a thocky custom mechanical keyboard, soft separate keystrokes with half-second pauses, close-miked, dry" (4 s, `prompt_influence` 0.7).
+  - Processing: high-pass at 70 Hz, low-pass at 8.5 kHz, tail trimmed at −42 dB, loudness matched by RMS, peak ≤ −6 dBFS.
+- **Thock:** the main hit of one take, 0.53–0.70 s.
+  - Prompt: "One deep, satisfying thock of a large mechanical keyboard Enter key pressed firmly, close-miked ASMR, warm low end, dry studio, no reverb, single press" (0.8 s, influence 0.85).
+  - Processing: high-pass at 35 Hz, low-pass at 9 kHz, peak −3 dBFS.
+- **Projector tick:** a single click of one take, 0.17–0.24 s.
+  - Prompt: "One faint single click of a vintage film projector shutter, very short dry tick, close-miked, quiet, no reverb" (0.5 s, influence 0.7).
+  - Processing: high-pass at 900 Hz, low-pass at 12 kHz, peak −6 dBFS. It plays at about 0.4 gain.
+- **Packaging:** one 2.0 s sprite with 120 ms gaps.
+  - `sfx.webm`: Opus, 32 kb/s VBR, mono, 8,241 B.
+  - `sfx.m4a`: AAC via AudioToolbox, 48 kb/s, mono, 13,640 B.
+  - The script measures the first onset after decoding and corrects for any AAC encoder delay.
+- **Fallback:** a Web Audio synth (filtered noise click plus sine body) if neither file decodes.
+- **Licence:** ElevenLabs allows commercial use of generated sound effects only on a **paid plan**; the free tier is non-commercial and needs attribution. Confirm the account's plan before launch.
+
+## What changed while building
+- **Hero:** the title sits on top. Below it, the frame is sized by the viewport's height, so the title, frame, track and typed line all fit on a laptop screen. The side copy sits in a column that hugs the frame.
+- **The demo** starts with its first request already typed, so the first thing that moves is the edit itself, and no text flashes in.
+- **Waitlist caret:** the line uses a thick custom caret, so the script switches the input to `type=text` with `inputmode=email`, because email inputs don't expose the caret position. Without JS it stays `type=email` with a red native caret.
 
 ## Fonts
 Schibsted Grotesk by Bakken & Bæck, SIL Open Font License 1.1. The licence is copied to `assets/fonts/OFL.txt`.
