@@ -397,7 +397,7 @@ function takeDemo(take) {
     const from = shown;
     const t0 = performance.now();
     const step = (t) => {
-      const p = Math.min(1, (t - t0) / 650);
+      const p = Math.min(1, Math.max(0, (t - t0) / 650)); // a frame can be stamped before t0
       shown = Math.round(from + (target - from) * (1 - Math.pow(1 - p, 3)));
       timeEl.textContent = fmt(shown);
       if (p < 1) raf = requestAnimationFrame(step);
