@@ -87,7 +87,7 @@ Below 20 px, use `favicon.svg` or the 16 and 32 px PNGs. They are fitted to the 
 - **Favicon and touch icon.**
   - `assets/img/icon.svg` is `favicon.svg`.
   - `apple-touch-icon.png` is the full-bleed 180 px icon.
-- **OG card.** `og.png` keeps the typographic card, with the lockup top left.
+- **OG card.** `og.png` is rendered from `docs/brand/og.svg`: the lockup, "The video editor you talk to." very large, and `dijmo.com`, centred on Porcelain (see `docs/design.md`).
 - **Header.**
   - The header's wordmark is inline SVG in `templates/base.html`, with no style attributes, as the CSP requires.
   - The letters use `currentColor`, so they follow the theme; the caret stays red.

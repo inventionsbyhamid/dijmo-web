@@ -104,3 +104,14 @@ I chose by analysis rather than by ear: onsets, tail length and spectral centroi
 
 ## Fonts
 Schibsted Grotesk by Bakken & Bæck, SIL Open Font License 1.1. The licence is copied to `assets/fonts/OFL.txt`.
+
+## The share card (Open Graph)
+`assets/img/og.png` (1200 × 630) holds three things, centred on Porcelain:
+- the Caret lockup;
+- one very large line, "The video editor you talk to.", in Schibsted Grotesk 600, kerned from the font's own tables;
+- `dijmo.com`, small, in the quiet grey.
+
+Everything sits inside a centred 1000 × 500 safe area, so the centre crops of X, iMessage and WhatsApp keep it, and it still reads at about 300 px wide. Every letter is an outline, so the render needs no installed font. `og:image:alt` matches the line.
+
+- **Source:** `docs/brand/og.svg`, written by `docs/brand/final/source/build_final.py`.
+- **Rebuild:** `python3 docs/brand/final/source/build_final.py og` (from the repo root). It writes the SVG, renders it with `rsvg-convert -w 1200 -h 630 -b '#F2F3F1' docs/brand/og.svg -o assets/img/og.png`, then reduces the PNG to a 64-colour palette (about 16 KB).

@@ -321,19 +321,119 @@ def header_svg(height=24):
             'aria-hidden="true" focusable="false">%s</svg>' % (num(w, 1), num(height, 1), num(w, 1), num(height, 1), body))
 
 
+def kerning(Fc):
+    """pair kerning from the instanced font's GPOS 'kern' lookups: kern(left, right) -> x advance in units"""
+    gpos = Fc.f['GPOS'].table
+    idx = sorted({i for fr in gpos.FeatureList.FeatureRecord if fr.FeatureTag == 'kern'
+                  for i in fr.Feature.LookupListIndex})
+    subtables = []
+    for i in idx:
+        lk = gpos.LookupList.Lookup[i]
+        for st in lk.SubTable:
+            if lk.LookupType == 9:
+                st = st.ExtSubTable
+            if getattr(st, 'LookupType', 2) == 2:
+                subtables.append(st)
+
+    def adv(v):
+        return (getattr(v, 'XAdvance', 0) or 0) if v is not None else 0
+
+    def kern(a, b):
+        for st in subtables:
+            cov = st.Coverage.glyphs
+            if a not in cov:
+                continue
+            if st.Format == 1:
+                for rec in st.PairSet[cov.index(a)].PairValueRecord:
+                    if rec.SecondGlyph == b:
+                        return adv(rec.Value1)
+            else:
+                c1 = st.ClassDef1.classDefs.get(a, 0)
+                c2 = st.ClassDef2.classDefs.get(b, 0)
+                return adv(st.Class1Record[c1].Class2Record[c2].Value1)
+        return 0
+    return kern
+
+
+def set_line(Fc, text, track=0):
+    """one line of text, kerned: [(contours, x)] and the ink extent (x0, x1), in font units"""
+    kern = kerning(Fc)
+    x = 0; out = []; prev = None
+    for ch in text:
+        g = Fc.cmap[ord(ch)]
+        if prev:
+            x += kern(prev, g) + track
+        if ch != ' ':
+            out.append((Fc.contours(ch), x))
+        x += Fc.adv(ch)[0]
+        prev = g
+    x0 = min(x + bounds(c)[0] for c, x in out)
+    x1 = max(x + bounds(c)[2] for c, x in out)
+    return out, (x0, x1)
+
+
+OG_W, OG_H = 1200, 630
+OG_TAGLINE = ('The video editor', 'you talk to.')
+OG_URL = 'dijmo.com'
+QUIET = '#5E6166'
+
+
+def og_svg():
+    """The Open Graph card: the lockup, one very large tagline and the address, centred inside a
+    1000 x 500 safe area so the centre crops of X, iMessage and WhatsApp keep all three. Every
+    letter is an outline from Schibsted Grotesk, so the render needs no installed font."""
+    upm = 2048
+    Ft = face(600)
+    Fu = face(500)
+    lines = [set_line(Ft, t, track=-0.025 * upm) for t in OG_TAGLINE]
+    widest = max(x1 - x0 for _, (x0, x1) in lines)
+    size = min(132.0, 980.0 / (widest / upm))           # px per em: the widest line spans at most 980 px
+    s = size / upm
+    cap = Ft.f['OS/2'].sCapHeight * s                    # cap height, in px
+    lead = size * 1.06
+    lock_h = 84
+    url_size = 30.0
+    us = url_size / upm
+    url, (u0, u1) = set_line(Fu, OG_URL)
+    # vertical stack: lockup, gap, two lines of tagline (cap to baseline), gap, address
+    gap1, gap2 = 70, 58
+    block = lock_h + gap1 + cap + lead + gap2 + 1100 * us
+    top = (OG_H - block) / 2
+    body = '<rect width="%d" height="%d" fill="%s"/>' % (OG_W, OG_H, POR)
+    lk = lockup_svg('light', lock_h)
+    lw = float(re.search(r'width="([\d.]+)"', lk).group(1))
+    inner = re.sub(r'^<svg[^>]*><title>[^<]*</title>|</svg>\s*$', '', lk)
+    body += '<g transform="translate(%s %s)">%s</g>' % (num((OG_W - lw) / 2), num(top), inner)
+    base = top + lock_h + gap1 + cap
+    d = ''
+    for parts, (x0, x1) in lines:
+        dx = (OG_W - (x1 - x0) * s) / 2 - x0 * s
+        d += ''.join(to_d(c, s, x * s + dx, base) for c, x in parts)
+        base += lead
+    body += '<path fill="%s" d="%s"/>' % (INK, squeeze(d, 2))
+    ub = base - lead + gap2 + 1100 * us
+    dx = (OG_W - (u1 - u0) * us) / 2 - u0 * us
+    body += '<path fill="%s" d="%s"/>' % (QUIET, squeeze(''.join(to_d(c, us, x * us + dx, ub) for c, x in url), 2))
+    return svg(OG_W, OG_H, body, 'Dijmo. The video editor you talk to.')
+
+
+def build_og():
+    """docs/brand/og.svg is the source; assets/img/og.png is rendered from it with rsvg-convert."""
+    src = os.path.join(ROOT, 'docs', 'brand', 'og.svg')
+    write(src, og_svg())
+    out = os.path.join(SITE_IMG, 'og.png')
+    subprocess.run(['nice', '-n', '19', 'rsvg-convert', '-w', str(OG_W), '-h', str(OG_H),
+                    '-b', POR, src, '-o', out], check=True)
+    # Few colours (ground, ink, grey, red, black, and their edges): a 64-colour palette stays crisp
+    # and keeps the file small.
+    im = Image.open(out).convert('RGB').quantize(colors=64, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+    im.save(out, optimize=True)
+
+
 def build_site():
     write(os.path.join(SITE_IMG, 'icon.svg'), FAVICON)
     save(png(full_bleed(), 180), os.path.join(SITE_IMG, 'apple-touch-icon.png'), flatten=(242, 243, 241, 255))
-    # OG card: keep the typographic card, swap the old text logo for the lockup
-    og_path = os.path.join(SITE_IMG, 'og.png')
-    og = Image.open(og_path).convert('RGBA')
-    og.paste((242, 243, 241, 255), (56, 44, 244, 110))   # clears the old text logo, or a previous lockup
-    p = os.path.join(TMP, 'lock.svg'); open(p, 'w').write(lockup_svg('light', 96))
-    out = os.path.join(TMP, 'lock.png')
-    subprocess.run(['rsvg-convert', '-h', '56', p, '-o', out], check=True)
-    lock = Image.open(out).convert('RGBA')
-    og.alpha_composite(lock, (64, 48))
-    og.convert('RGB').save(og_path, optimize=True)
+    build_og()
     write(os.path.join(FINAL, 'source', 'header.svg.html'), header_svg() + '\n')
 
 
@@ -345,4 +445,6 @@ if __name__ == '__main__':
         build_app_icons()
     if 'site' in what:
         build_site()
+    elif 'og' in what:
+        build_og()
     print('done:', ' '.join(what))
