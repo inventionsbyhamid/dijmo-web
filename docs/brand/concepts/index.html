@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dijmo, four ways</title>
+<meta name="color-scheme" content="light">
+<style>
+@font-face {
+  font-family: "Schibsted Grotesk";
+  /* Schibsted Grotesk (OFL), subset to this page and inlined so it also loads from file:// */
+  src: url("data:font/woff2;base64,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") format("woff2");
+  font-weight: 400 700;
+  font-display: swap;
+}
+:root {
+  --ground: #F2F3F1;
+  --ink: #17181A;
+  --quiet: #5E6166;
+  --line: #D9DBD8;
+  --caret: #E0301A;
+  --stage: #000000;
+  --stage-ink: #F2F2EF;
+  --gutter: 7.5rem;
+}
+* { box-sizing: border-box; }
+html { background: var(--ground); color: var(--ink); }
+body {
+  margin: 0;
+  font: 400 1rem/1.5 "Schibsted Grotesk", system-ui, sans-serif;
+  font-feature-settings: "tnum" 0;
+  -webkit-font-smoothing: antialiased;
+}
+img { display: block; }
+a { color: inherit; text-decoration-color: var(--caret); text-underline-offset: .2em; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--caret); outline-offset: 3px; }
+
+.page { max-width: 92rem; margin: 0 auto; padding: 4rem 2rem 6rem; }
+
+/* intro: one left axis, a reading measure */
+.intro { max-width: 40rem; margin-bottom: 4rem; }
+.intro h1 { font-size: clamp(2.25rem, 4vw, 3.25rem); font-weight: 500; line-height: 1.08; letter-spacing: -0.015em; margin: 0 0 1.25rem; }
+.intro p { font-size: 1.125rem; color: var(--quiet); margin: 0; max-width: 34rem; }
+
+/* the board: a label column and four directions, rows shared through subgrid */
+.board {
+  display: grid;
+  grid-template-columns: var(--gutter) repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(7, auto);
+  column-gap: 1.25rem;
+}
+.col { display: grid; grid-row: 1 / span 7; grid-template-rows: subgrid; row-gap: 0; }
+.labels .lab { font-size: .875rem; color: var(--quiet); padding-top: 1.1rem; border-top: 1px solid var(--line); }
+.labels .lab:first-child { border-top: 0; }
+.cell { padding: 1rem 0 1.75rem; border-top: 1px solid var(--line); }
+.cell:first-child { border-top: 0; padding-top: 0; }
+.cell .tag { display: none; }
+
+.dir h2 { font-size: 1.625rem; font-weight: 500; letter-spacing: -0.01em; margin: 0 0 .5rem; }
+.dir .idea { margin: 0 0 .75rem; }
+.dir .weak { margin: 0; color: var(--quiet); font-size: .9375rem; }
+.dir .weak b { font-weight: 500; color: var(--ink); }
+
+/* tiles */
+.tile { border-radius: 14px; display: flex; align-items: center; gap: 1.25rem; padding: 1.25rem; }
+.tile.light { background: var(--ground); box-shadow: inset 0 0 0 1px var(--line); }
+.tile.dark { background: var(--stage); }
+.tile.white { background: #fff; box-shadow: inset 0 0 0 1px var(--line); }
+.icon-tile { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem; }
+.icon-tile .big { width: 100%; max-width: 11rem; height: auto; justify-self: center; }
+.ladder { display: flex; flex-direction: column; align-items: center; gap: .5rem; }
+.ladder img:nth-child(1) { width: 64px; }
+.ladder img:nth-child(2) { width: 32px; }
+.ladder img:nth-child(3) { width: 16px; }
+
+.loupes { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+.loupe { display: flex; flex-direction: column; gap: .375rem; font-size: .75rem; color: var(--quiet); line-height: 1.3; }
+.loupe .px { border-radius: 8px; padding: 6px; display: grid; place-items: center; }
+.loupe .px img { width: 100%; max-width: 64px; height: auto; image-rendering: pixelated; }
+.px.on-light { background: var(--ground); box-shadow: inset 0 0 0 1px var(--line); }
+.px.on-dark { background: var(--stage); }
+.px.tab-light { background: #FFFFFF; box-shadow: inset 0 0 0 1px var(--line); }
+.px.tab-dark { background: #35363A; }
+
+.marks { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
+.marks .tile { justify-content: center; padding: 1.25rem .5rem; aspect-ratio: 1; }
+.marks img { width: 70%; max-width: 6rem; height: auto; max-height: 70%; object-fit: contain; }
+
+.words { display: grid; gap: .5rem; }
+.words .tile { justify-content: flex-start; padding: 1.25rem 1.25rem; min-height: 6.25rem; }
+.words img { height: 3.25rem; width: auto; max-width: 100%; }
+.words .small { display: flex; gap: 1.5rem; align-items: center; }
+.words .small img { height: 1.25rem; }
+
+.proof { font-size: .875rem; }
+
+/* context mocks */
+.context { margin-top: 5rem; }
+.context h2 { font-size: 1.625rem; font-weight: 500; letter-spacing: -0.01em; margin: 0 0 .5rem; }
+.context > p { color: var(--quiet); margin: 0 0 1.5rem; max-width: 40rem; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+
+.desk { border-radius: 16px; padding: 5.5rem 1rem 1rem; display: flex; justify-content: center; background: #D3D6D1; }
+.desk.dark { background: #1B1B1D; }
+.dock {
+  display: flex; align-items: flex-end; gap: 6px; padding: 6px 8px 8px; border-radius: 22px;
+  background: rgba(255,255,255,.45); box-shadow: inset 0 0 0 1px rgba(255,255,255,.65), 0 12px 32px rgba(0,0,0,.14);
+  -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+}
+.desk.dark .dock { background: rgba(48,48,50,.72); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), 0 12px 32px rgba(0,0,0,.5); }
+.dock .app { position: relative; width: 60px; height: 60px; transform-origin: 50% 100%; transition: transform .18s cubic-bezier(.2,.7,.2,1); }
+.dock .app:hover { transform: scale(1.45); z-index: 1; }
+.dock .app img, .dock .app svg { width: 60px; height: 60px; }
+.dock .app.run::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: rgba(0,0,0,.55); }
+.desk.dark .dock .app.run::after { background: rgba(255,255,255,.7); }
+.dock .sep { width: 1px; align-self: stretch; margin: 8px 3px; background: rgba(0,0,0,.16); }
+.desk.dark .dock .sep { background: rgba(255,255,255,.16); }
+.dock .app .name {
+  position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%) scale(.69);
+  white-space: nowrap; font-size: 13px; padding: 3px 9px; border-radius: 6px; opacity: 0; pointer-events: none;
+  background: rgba(240,240,240,.92); color: #1d1d1f; box-shadow: 0 2px 8px rgba(0,0,0,.18);
+}
+.dock .app:hover .name { opacity: 1; }
+
+.finder { border-radius: 12px; overflow: hidden; background: #FFFFFF; box-shadow: 0 0 0 1px rgba(0,0,0,.14), 0 18px 40px rgba(0,0,0,.12); font: 13px/1.2 -apple-system, BlinkMacSystemFont, "Schibsted Grotesk", sans-serif; color: #1D1D1F; }
+.finder.dark { background: #1E1E1E; color: #E6E6E6; box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 18px 40px rgba(0,0,0,.5); }
+.finder .bar { height: 46px; display: flex; align-items: center; gap: 8px; padding: 0 14px; background: #F4F4F4; border-bottom: 1px solid #E2E2E2; }
+.finder.dark .bar { background: #2A2A2A; border-color: #3A3A3A; }
+.finder .lights { display: flex; gap: 8px; margin-right: 12px; }
+.finder .lights i { width: 12px; height: 12px; border-radius: 50%; background: #D9D9D9; }
+.finder.dark .lights i { background: #4A4A4A; }
+.finder .bar b { font-weight: 600; }
+.finder table { width: 100%; border-collapse: collapse; }
+.finder th { text-align: left; font-weight: 400; color: #8A8A8E; padding: 6px 14px; border-bottom: 1px solid #ECECEC; }
+.finder.dark th { border-color: #333; color: #8E8E93; }
+.finder td { padding: 3px 14px; height: 24px; }
+.finder tr:nth-child(even) td { background: #F4F5F5; }
+.finder.dark tr:nth-child(even) td { background: #262626; }
+.finder td.n { display: flex; align-items: center; gap: 7px; }
+.finder td.n img { width: 16px; height: 16px; }
+.finder .k { color: #8A8A8E; }
+.finder .grid { display: grid; grid-template-columns: repeat(4, 1fr); padding: 18px 10px 22px; border-top: 1px solid #ECECEC; }
+.finder.dark .grid { border-color: #333; }
+.finder .grid figure { margin: 0; display: grid; justify-items: center; gap: 6px; }
+.finder .grid img { width: 64px; height: 64px; }
+
+.browser { border-radius: 12px; overflow: hidden; background: #DFE1E5; box-shadow: 0 0 0 1px rgba(0,0,0,.1); font: 12px/1.2 system-ui, -apple-system, sans-serif; color: #3C4043; }
+.browser.dark { background: #202124; color: #E8EAED; box-shadow: 0 0 0 1px rgba(255,255,255,.08); }
+.browser .strip { display: flex; padding: 8px 8px 0 78px; position: relative; }
+.browser .strip::before { content: ""; position: absolute; left: 16px; top: 18px; width: 48px; height: 12px; background: radial-gradient(circle at 6px 6px, #C4C6CA 5.5px, transparent 6px) 0 0 / 20px 12px repeat-x; }
+.browser.dark .strip::before { background-image: radial-gradient(circle at 6px 6px, #4A4C50 5.5px, transparent 6px); }
+.tab { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border-radius: 9px 9px 0 0; white-space: nowrap; overflow: hidden; }
+.tab + .tab { box-shadow: inset 1px 0 0 0 rgba(0,0,0,.12); }
+.browser.dark .tab + .tab { box-shadow: inset 1px 0 0 0 rgba(255,255,255,.12); }
+.tab.active { background: #FFFFFF; box-shadow: none; }
+.tab.active + .tab { box-shadow: none; }
+.browser.dark .tab.active { background: #35363A; }
+.tab img { width: 16px; height: 16px; flex: none; }
+.tab span { overflow: hidden; text-overflow: ellipsis; }
+.browser .url { background: #FFFFFF; padding: 7px 12px 9px; }
+.browser.dark .url { background: #35363A; }
+.browser .url div { background: #F1F3F4; border-radius: 15px; padding: 7px 14px; color: #5F6368; }
+.browser.dark .url div { background: #202124; color: #BDC1C6; }
+
+.pick { margin-top: 5rem; max-width: 44rem; }
+.pick h2 { font-size: 1.625rem; font-weight: 500; margin: 0 0 .75rem; }
+.pick p { font-size: 1.125rem; margin: 0 0 1rem; }
+.pick p.quiet { color: var(--quiet); font-size: 1rem; }
+
+@media (max-width: 1100px) {
+  .board { grid-template-columns: 1fr 1fr; grid-template-rows: none; row-gap: 3rem; }
+  .labels { display: none; }
+  .col { grid-row: auto; grid-template-rows: none; }
+  .cell .tag { display: block; font-size: .8125rem; color: var(--quiet); margin-bottom: .5rem; }
+  .pair { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .page { padding: 2.5rem 1.25rem 4rem; }
+  .board { grid-template-columns: 1fr; }
+  .desk { padding-top: 3.5rem; overflow-x: auto; justify-content: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dock .app { transition: none; }
+  .dock .app:hover { transform: none; }
+}
+</style>
+</head>
+<body>
+<main class="page">
+
+<header class="intro">
+  <h1>Dijmo, four ways</h1>
+  <p>Four directions for the new logo. Each has a mark, a wordmark, a macOS icon and a favicon, in light, dark and one colour. Every letter is an outline cut from Schibsted Grotesk, the site’s own face, so nothing depends on an installed font.</p>
+</header>
+
+<div class="board">
+
+  <div class="col labels" aria-hidden="true">
+    <div class="lab" style="border-top:0;padding-top:0">Idea</div>
+    <div class="lab">Icon on Porcelain</div>
+    <div class="lab">Icon on Stage</div>
+    <div class="lab">16 px, magnified</div>
+    <div class="lab">Mark</div>
+    <div class="lab">Wordmark</div>
+    <div class="lab">Proof sheet</div>
+  </div>
+
+  <!-- ===================================================== Caret -->
+  <article class="col dir" id="caret">
+    <div class="cell">
+      <h2>Caret</h2>
+      <p class="idea">The d’s stem is the caret: cut free of its bowl, red, and running a little under the baseline the way a playhead crosses a track.</p>
+      <p class="weak"><b>Weak spot.</b> A letter with one coloured stroke is a familiar monogram move, so the idea lives in the colour and the cut more than in the silhouette.</p>
+    </div>
+    <div class="cell"><span class="tag">Icon on Porcelain</span>
+      <div class="tile light icon-tile"><img class="big" src="caret/app-icon-light.svg" alt="Caret app icon, light">
+        <div class="ladder"><img src="caret/app-icon-light.svg" alt=""><img src="caret/app-icon-light.svg" alt=""><img src="caret/app-icon-light.svg" alt=""></div></div>
+    </div>
+    <div class="cell"><span class="tag">Icon on Stage</span>
+      <div class="tile dark icon-tile"><img class="big" src="caret/app-icon-dark.svg" alt="Caret app icon, dark">
+        <div class="ladder"><img src="caret/app-icon-dark.svg" alt=""><img src="caret/app-icon-dark.svg" alt=""><img src="caret/app-icon-dark.svg" alt=""></div></div>
+    </div>
+    <div class="cell"><span class="tag">16 px, magnified</span>
+      <div class="loupes">
+        <div class="loupe"><div class="px on-light"><img src="caret/png/app-icon-light-16.png" alt="Caret icon at 16 px"></div>Icon</div>
+        <div class="loupe"><div class="px on-dark"><img src="caret/png/app-icon-dark-16.png" alt="Caret dark icon at 16 px"></div>Icon, dark</div>
+        <div class="loupe"><div class="px tab-light"><img src="caret/png/favicon-16.png" alt="Caret favicon at 16 px"></div>Favicon</div>
+        <div class="loupe"><div class="px tab-dark"><img src="caret/png/favicon-16.png" alt="Caret favicon at 16 px on a dark tab"></div>Favicon, dark tab</div>
+      </div>
+    </div>
+    <div class="cell"><span class="tag">Mark</span>
+      <div class="marks">
+        <div class="tile light"><img src="caret/mark-light.svg" alt="Caret mark, light"></div>
+        <div class="tile dark"><img src="caret/mark-dark.svg" alt="Caret mark, dark"></div>
+        <div class="tile white"><img src="caret/mark-mono.svg" alt="Caret mark, one colour"></div>
+      </div>
+    </div>
+    <div class="cell"><span class="tag">Wordmark</span>
+      <div class="words">
+        <div class="tile light"><img src="caret/wordmark-light.svg" alt="dijmo wordmark, Caret, light"></div>
+        <div class="tile dark"><img src="caret/wordmark-dark.svg" alt="dijmo wordmark, Caret, dark"></div>
+        <div class="tile white small"><img src="caret/wordmark-mono.svg" alt="dijmo wordmark, Caret, one colour"><img src="caret/wordmark-mono.svg" alt="" style="height:.875rem"></div>
+      </div>
+    </div>
+    <div class="cell proof"><span class="tag">Proof sheet</span><a href="caret/preview.png">caret/preview.png</a></div>
+  </article>
+
+  <!-- ===================================================== Selection -->
+  <article class="col dir" id="selection">
+    <div class="cell">
+      <h2>Selection</h2>
+      <p class="idea">The name arrives already selected, highlight and handles and all, because in Dijmo selecting words is selecting the video.</p>
+      <p class="weak"><b>Weak spot.</b> It needs three colours and some fuss; at 16 px it is a d on a pink tile with two red specks, and it reads as interface before brand.</p>
+    </div>
+    <div class="cell"><span class="tag">Icon on Porcelain</span>
+      <div class="tile light icon-tile"><img class="big" src="selection/app-icon-light.svg" alt="Selection app icon, light">
+        <div class="ladder"><img src="selection/app-icon-light.svg" alt=""><img src="selection/app-icon-light.svg" alt=""><img src="selection/app-icon-light.svg" alt=""></div></div>
+    </div>
+    <div class="cell"><span class="tag">Icon on Stage</span>
+      <div class="tile dark icon-tile"><img class="big" src="selection/app-icon-dark.svg" alt="Selection app icon, dark">
+        <div class="ladder"><img src="selection/app-icon-dark.svg" alt=""><img src="selection/app-icon-dark.svg" alt=""><img src="selection/app-icon-dark.svg" alt=""></div></div>
+    </div>
+    <div class="cell"><span class="tag">16 px, magnified</span>
+      <div class="loupes">
+        <div class="loupe"><div class="px on-light"><img src="selection/png/app-icon-light-16.png" alt="Selection icon at 16 px"></div>Icon</div>
+        <div class="loupe"><div class="px on-dark"><img src="selection/png/app-icon-dark-16.png" alt="Selection dark icon at 16 px"></div>Icon, dark</div>
+        <div class="loupe"><div class="px tab-light"><img src="selection/png/favicon-16.png" alt="Selection favicon at 16 px"></div>Favicon</div>
+        <div class="loupe"><div class="px tab-dark"><img src="selection/png/favicon-16.png" alt="Selection favicon at 16 px on a dark tab"></div>Favicon, dark tab</div>
+      </div>
+    </div>
+    <div class="cell"><span class="tag">Mark</span>
+      <div class="marks">
+        <div class="tile light"><img src="selection/mark-light.svg" alt="Selection mark, light"></div>
+        <div class="tile dark"><img src="selection/mark-dark.svg" alt="Selection mark, dark"></div>
+        <div class="tile white"><img src="selection/mark-mono.svg" alt="Selection mark, one colour"></div>
+      </div>
+    </div>
+    <div class="cell"><span class="tag">Wordmark</span>
+      <div class="words">
+        <div class="tile light"><img src="selection/wordmark-light.svg" alt="dijmo wordmark, Selection, light"></div>
+        <div class="tile dark"><img src="selection/wordmark-dark.svg" alt="dijmo wordmark, Selection, dark"></div>
+        <div class="tile white small"><img src="selection/wordmark-mono.svg" alt="dijmo wordmark, Selection, one colour"><img src="selection/wordmark-mono.svg" alt="" style="height:.875rem"></div>
+      </div>
+    </div>
+    <div class="cell proof"><span class="tag">Proof sheet</span><a href="selection/preview.png">selection/preview.png</a></div>
+  </article>
+
+  <!-- ===================================================== Cut -->
+  <article class="col dir" id="cut">
+    <div class="cell">
+      <h2>Cut</h2>
+      <p class="idea">The record dot, cut once at the caret: a take and an edit in one shape, and the cut leaves a D.</p>
+      <p class="weak"><b>Weak spot.</b> Split circles are common in logos, and this one says record and cut rather than words; in the wordmark the o reads as a dot first.</p>
+    </div>
+    <div class="cell"><span class="tag">Icon on Porcelain</span>
+      <div class="tile light icon-tile"><img class="big" src="cut/app-icon-light.svg" alt="Cut app icon, light">
+        <div class="ladder"><img src="cut/app-icon-light.svg" alt=""><img src="cut/app-icon-light.svg" alt=""><img src="cut/app-icon-light.svg" alt=""></div></div>
+    </div>
+    <div class="cell"><span class="tag">Icon on Stage</span>
+      <div class="tile dark icon-tile"><img class="big" src="cut/app-icon-dark.svg" alt="Cut app icon, dark">
+        <div class="ladder"><img src="cut/app-icon-dark.svg" alt=""><img src="cut/app-icon-dark.svg" alt=""><img src="cut/app-icon-dark.svg" alt=""></div></div>
+    </div>
+    <div class="cell"><span class="tag">16 px, magnified</span>
+      <div class="loupes">
+        <div class="loupe"><div class="px on-light"><img src="cut/png/app-icon-light-16.png" alt="Cut icon at 16 px"></div>Icon</div>
+        <div class="loupe"><div class="px on-dark"><img src="cut/png/app-icon-dark-16.png" alt="Cut dark icon at 16 px"></div>Icon, dark</div>
+        <div class="loupe"><div class="px tab-light"><img src="cut/png/favicon-16.png" alt="Cut favicon at 16 px"></div>Favicon</div>
+        <div class="loupe"><div class="px tab-dark"><img src="cut/png/favicon-16.png" alt="Cut favicon at 16 px on a dark tab"></div>Favicon, dark tab</div>
+      </div>
+    </div>
+    <div class="cell"><span class="tag">Mark</span>
+      <div class="marks">
+        <div class="tile light"><img src="cut/mark-light.svg" alt="Cut mark, light"></div>
+        <div class="tile dark"><img src="cut/mark-dark.svg" alt="Cut mark, dark"></div>
+        <div class="tile white"><img src="cut/mark-mono.svg" alt="Cut mark, one colour"></div>
+      </div>
+    </div>
+    <div class="cell"><span class="tag">Wordmark</span>
+      <div class="words">
+        <div class="tile light"><img src="cut/wordmark-light.svg" alt="dijmo wordmark, Cut, light"></div>
+        <div class="tile dark"><img src="cut/wordmark-dark.svg" alt="dijmo wordmark, Cut, dark"></div>
+        <div class="tile white small"><img src="cut/wordmark-mono.svg" alt="dijmo wordmark, Cut, one colour"><img src="cut/wordmark-mono.svg" alt="" style="height:.875rem"></div>
+      </div>
+    </div>
+    <div class="cell proof"><span class="tag">Proof sheet</span><a href="cut/preview.png">cut/preview.png</a></div>
+  </article>
+
+  <!-- ===================================================== Thock -->
+  <article class="col dir" id="thock">
+    <div class="cell">
+      <h2>Thock</h2>
+      <p class="idea">A porcelain keycap whose legend is the caret: the site’s thock made into an object, and at home on a gamer’s desk.</p>
+      <p class="weak"><b>Weak spot.</b> It says keyboard before video, and without the material icon the flat mark is a rounded square that many apps could own.</p>
+    </div>
+    <div class="cell"><span class="tag">Icon on Porcelain</span>
+      <div class="tile light icon-tile"><img class="big" src="thock/app-icon-light.svg" alt="Thock app icon, light">
+        <div class="ladder"><img src="thock/app-icon-light.svg" alt=""><img src="thock/app-icon-light.svg" alt=""><img src="thock/app-icon-light.svg" alt=""></div></div>
+    </div>
+    <div class="cell"><span class="tag">Icon on Stage</span>
+      <div class="tile dark icon-tile"><img class="big" src="thock/app-icon-dark.svg" alt="Thock app icon, dark">
+        <div class="ladder"><img src="thock/app-icon-dark.svg" alt=""><img src="thock/app-icon-dark.svg" alt=""><img src="thock/app-icon-dark.svg" alt=""></div></div>
+    </div>
+    <div class="cell"><span class="tag">16 px, magnified</span>
+      <div class="loupes">
+        <div class="loupe"><div class="px on-light"><img src="thock/png/app-icon-light-16.png" alt="Thock icon at 16 px"></div>Icon</div>
+        <div class="loupe"><div class="px on-dark"><img src="thock/png/app-icon-dark-16.png" alt="Thock dark icon at 16 px"></div>Icon, dark</div>
+        <div class="loupe"><div class="px tab-light"><img src="thock/png/favicon-16.png" alt="Thock favicon at 16 px"></div>Favicon</div>
+        <div class="loupe"><div class="px tab-dark"><img src="thock/png/favicon-16.png" alt="Thock favicon at 16 px on a dark tab"></div>Favicon, dark tab</div>
+      </div>
+    </div>
+    <div class="cell"><span class="tag">Mark</span>
+      <div class="marks">
+        <div class="tile light"><img src="thock/mark-light.svg" alt="Thock mark, light"></div>
+        <div class="tile dark"><img src="thock/mark-dark.svg" alt="Thock mark, dark"></div>
+        <div class="tile white"><img src="thock/mark-mono.svg" alt="Thock mark, one colour"></div>
+      </div>
+    </div>
+    <div class="cell"><span class="tag">Wordmark</span>
+      <div class="words">
+        <div class="tile light"><img src="thock/wordmark-light.svg" alt="dijmo wordmark, Thock, light"></div>
+        <div class="tile dark"><img src="thock/wordmark-dark.svg" alt="dijmo wordmark, Thock, dark"></div>
+        <div class="tile white small"><img src="thock/wordmark-mono.svg" alt="dijmo wordmark, Thock, one colour"><img src="thock/wordmark-mono.svg" alt="" style="height:.875rem"></div>
+      </div>
+    </div>
+    <div class="cell proof"><span class="tag">Proof sheet</span><a href="thock/preview.png">thock/preview.png</a></div>
+  </article>
+</div>
+
+<!-- shared shapes for the neighbour icons in the Dock -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <path id="sq" d="M383.41 100L640.59 100C722.19 100 763 100 806.92 113.89C854.88 131.42 892.58 169.12 910.11 217.08C924 261 924 301.81 924 383.41L924 640.59C924 722.19 924 763 910.11 806.92C892.58 854.88 854.88 892.58 806.92 910.11C763 924 722.19 924 640.59 924L383.41 924C301.81 924 261 924 217.08 910.11C169.12 892.58 131.42 854.88 113.89 806.92C100 763 100 722.19 100 640.59L100 383.41C100 301.81 100 261 113.89 217.08C131.42 169.12 169.12 131.42 217.08 113.89C261 100 301.81 100 383.41 100Z"/>
+  </defs>
+</svg>
+
+<section class="context" aria-labelledby="dock-h">
+  <h2 id="dock-h">In the Dock</h2>
+  <p>The four icons side by side at Dock size, between neutral neighbours. Hover one to magnify it. On Stage each direction uses its dark icon, as macOS 26 does when the Dock is dark.</p>
+  <div class="pair">
+    <div class="desk">
+      <div class="dock">
+        <div class="app"><svg viewBox="0 0 1024 1024"><use href="#sq" fill="#A9B4C2"/><circle cx="512" cy="512" r="190" fill="#F4F6F8"/></svg></div>
+        <div class="app"><svg viewBox="0 0 1024 1024"><use href="#sq" fill="#EDEAE3"/><rect x="300" y="300" width="424" height="424" rx="40" fill="#CFC8BA"/></svg></div>
+        <div class="app run"><img src="caret/app-icon-light.svg" alt="Caret"><span class="name">Dijmo, Caret</span></div>
+        <div class="app run"><img src="selection/app-icon-light.svg" alt="Selection"><span class="name">Dijmo, Selection</span></div>
+        <div class="app run"><img src="cut/app-icon-light.svg" alt="Cut"><span class="name">Dijmo, Cut</span></div>
+        <div class="app run"><img src="thock/app-icon-light.svg" alt="Thock"><span class="name">Dijmo, Thock</span></div>
+        <div class="app"><svg viewBox="0 0 1024 1024"><use href="#sq" fill="#3E4A5A"/><path d="M330 690L512 330L694 690Z" fill="#8FA1B6"/></svg></div>
+        <div class="sep"></div>
+        <div class="app"><svg viewBox="0 0 1024 1024"><use href="#sq" fill="#E4E6E8"/><rect x="380" y="330" width="264" height="380" rx="30" fill="none" stroke="#AEB4BB" stroke-width="36"/></svg></div>
+      </div>
+    </div>
+    <div class="desk dark">
+      <div class="dock">
+        <div class="app"><svg viewBox="0 0 1024 1024"><use href="#sq" fill="#4D5866"/><circle cx="512" cy="512" r="190" fill="#9AA6B4"/></svg></div>
+        <div class="app"><svg viewBox="0 0 1024 1024"><use href="#sq" fill="#3A3833"/><rect x="300" y="300" width="424" height="424" rx="40" fill="#6E675A"/></svg></div>
+        <div class="app run"><img src="caret/app-icon-dark.svg" alt="Caret, dark"><span class="name">Dijmo, Caret</span></div>
+        <div class="app run"><img src="selection/app-icon-dark.svg" alt="Selection, dark"><span class="name">Dijmo, Selection</span></div>
+        <div class="app run"><img src="cut/app-icon-dark.svg" alt="Cut, dark"><span class="name">Dijmo, Cut</span></div>
+        <div class="app run"><img src="thock/app-icon-dark.svg" alt="Thock, dark"><span class="name">Dijmo, Thock</span></div>
+        <div class="app"><svg viewBox="0 0 1024 1024"><use href="#sq" fill="#22303F"/><path d="M330 690L512 330L694 690Z" fill="#53677D"/></svg></div>
+        <div class="sep"></div>
+        <div class="app"><svg viewBox="0 0 1024 1024"><use href="#sq" fill="#3A3C3F"/><rect x="380" y="330" width="264" height="380" rx="30" fill="none" stroke="#6C7076" stroke-width="36"/></svg></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="context" aria-labelledby="finder-h">
+  <h2 id="finder-h">In Finder</h2>
+  <p>List view at 16 points and icon view at 64, the two sizes people meet most after the Dock.</p>
+  <div class="pair">
+    <div class="finder">
+      <div class="bar"><span class="lights"><i></i><i></i><i></i></span><b>Applications</b></div>
+      <table>
+        <thead><tr><th>Name</th><th>Kind</th><th>Direction</th></tr></thead>
+        <tbody>
+          <tr><td class="n"><img src="caret/app-icon-light.svg" alt="">Dijmo</td><td class="k">Application</td><td class="k">Caret</td></tr>
+          <tr><td class="n"><img src="selection/app-icon-light.svg" alt="">Dijmo</td><td class="k">Application</td><td class="k">Selection</td></tr>
+          <tr><td class="n"><img src="cut/app-icon-light.svg" alt="">Dijmo</td><td class="k">Application</td><td class="k">Cut</td></tr>
+          <tr><td class="n"><img src="thock/app-icon-light.svg" alt="">Dijmo</td><td class="k">Application</td><td class="k">Thock</td></tr>
+        </tbody>
+      </table>
+      <div class="grid">
+        <figure><img src="caret/app-icon-light.svg" alt=""><figcaption>Dijmo</figcaption></figure>
+        <figure><img src="selection/app-icon-light.svg" alt=""><figcaption>Dijmo</figcaption></figure>
+        <figure><img src="cut/app-icon-light.svg" alt=""><figcaption>Dijmo</figcaption></figure>
+        <figure><img src="thock/app-icon-light.svg" alt=""><figcaption>Dijmo</figcaption></figure>
+      </div>
+    </div>
+    <div class="finder dark">
+      <div class="bar"><span class="lights"><i></i><i></i><i></i></span><b>Applications</b></div>
+      <table>
+        <thead><tr><th>Name</th><th>Kind</th><th>Direction</th></tr></thead>
+        <tbody>
+          <tr><td class="n"><img src="caret/app-icon-dark.svg" alt="">Dijmo</td><td class="k">Application</td><td class="k">Caret</td></tr>
+          <tr><td class="n"><img src="selection/app-icon-dark.svg" alt="">Dijmo</td><td class="k">Application</td><td class="k">Selection</td></tr>
+          <tr><td class="n"><img src="cut/app-icon-dark.svg" alt="">Dijmo</td><td class="k">Application</td><td class="k">Cut</td></tr>
+          <tr><td class="n"><img src="thock/app-icon-dark.svg" alt="">Dijmo</td><td class="k">Application</td><td class="k">Thock</td></tr>
+        </tbody>
+      </table>
+      <div class="grid">
+        <figure><img src="caret/app-icon-dark.svg" alt=""><figcaption>Dijmo</figcaption></figure>
+        <figure><img src="selection/app-icon-dark.svg" alt=""><figcaption>Dijmo</figcaption></figure>
+        <figure><img src="cut/app-icon-dark.svg" alt=""><figcaption>Dijmo</figcaption></figure>
+        <figure><img src="thock/app-icon-dark.svg" alt=""><figcaption>Dijmo</figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="context" aria-labelledby="tab-h">
+  <h2 id="tab-h">In a browser tab</h2>
+  <p>The favicons at 16 pixels, left to right Caret, Selection, Cut and Thock, on a light and a dark tab strip.</p>
+  <div class="pair">
+    <div class="browser">
+      <div class="strip">
+        <div class="tab active"><img src="caret/favicon.svg" alt="Caret favicon"><span>Dijmo: a video editor you talk to</span></div>
+        <div class="tab"><img src="selection/favicon.svg" alt="Selection favicon"><span>Dijmo: a video editor you talk to</span></div>
+        <div class="tab"><img src="cut/favicon.svg" alt="Cut favicon"><span>Dijmo: a video editor you talk to</span></div>
+        <div class="tab"><img src="thock/favicon.svg" alt="Thock favicon"><span>Dijmo: a video editor you talk to</span></div>
+      </div>
+      <div class="url"><div>dijmo.com</div></div>
+    </div>
+    <div class="browser dark">
+      <div class="strip">
+        <div class="tab active"><img src="caret/favicon.svg" alt="Caret favicon"><span>Dijmo: a video editor you talk to</span></div>
+        <div class="tab"><img src="selection/favicon.svg" alt="Selection favicon"><span>Dijmo: a video editor you talk to</span></div>
+        <div class="tab"><img src="cut/favicon.svg" alt="Cut favicon"><span>Dijmo: a video editor you talk to</span></div>
+        <div class="tab"><img src="thock/favicon.svg" alt="Thock favicon"><span>Dijmo: a video editor you talk to</span></div>
+      </div>
+      <div class="url"><div>dijmo.com</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="pick" aria-labelledby="pick-h">
+  <h2 id="pick-h">My pick: Caret</h2>
+  <p>It is the site’s own idea, the caret is the playhead, made into a letter. It is the quietest of the four, the clearest at 16 pixels, and it keeps its meaning in one colour because the cut, not the red, separates caret from bowl.</p>
+  <p class="quiet">Cut is the boldest in the Dock and would make a good recording indicator inside the app whichever direction wins. Files, sizes and how to rebuild them are in <a href="README.md">README.md</a>.</p>
+</section>
+
+</main>
+</body>
+</html>
