@@ -356,7 +356,11 @@
       at(1950, () => Sound.tick(0.8));
     },
     turn(el) {
-      at(250, () => typerIn(el, '[data-type]').run(0.6));
+      at(250, async () => {
+        await typerIn(el, '[data-type]').run(0.6);
+        if (!still) await sleep(420);
+        Sound.thock(0.5); // the question lands like Enter
+      });
     },
     record() {
       at(320, () => Sound.tick(0.7));

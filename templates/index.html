@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
 <section class="hero" aria-labelledby="hero-title">
-  <h1 class="hero__title" id="hero-title">Say what you want, and it’s done.</h1>
+  <h1 class="hero__title" id="hero-title"><span class="hero__phrase">Say what you want,</span> and it’s done.</h1>
   <div class="hero__side">
     <p class="hero__lede">Dijmo is a video editor you talk to, made for people who aren’t editors.</p>
     <a class="hero__join" href="#join">Join the waitlist</a>
@@ -110,7 +110,7 @@
 
 <section class="join" id="join" aria-labelledby="join-title">
   <h2 class="join__title" id="join-title">Be the first to try it.</h2>
-  <form class="entry{% if status == "sent" %} is-sent{% endif %}" method="post" action="/waitlist" data-join>
+  <form class="entry" method="post" action="/waitlist" data-join>
     <label class="entry__label" for="email">Your email</label>
     <div class="entry__row">
       <div class="entry__field">

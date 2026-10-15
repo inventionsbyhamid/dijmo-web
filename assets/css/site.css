@@ -61,6 +61,7 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 * { margin: 0; }
+[hidden] { display: none !important; }
 
 html {
   -webkit-text-size-adjust: 100%;
@@ -409,8 +410,10 @@ ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
 }
 @media (min-width: 960px) {
   .hero {
-    grid-template-columns: minmax(0, 1fr) minmax(220px, 290px);
+    /* The frame is sized by the viewport's height so the whole demo fits; the side copy hugs it. */
+    grid-template-columns: min(100% - 290px - 48px, max(480px, (100svh - 430px) * 1.7778)) minmax(220px, 290px);
     grid-template-areas: "title title" "demo side";
+    justify-content: start;
     gap: clamp(28px, 4.5vh, 48px) 48px;
   }
 }
@@ -423,6 +426,9 @@ ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
   letter-spacing: -.045em;
   max-width: 18ch;
   text-wrap: balance;
+}
+@media (min-width: 600px) {
+  .hero__phrase { white-space: nowrap; }
 }
 .hero__side {
   grid-area: side;
@@ -453,7 +459,7 @@ ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
 .hero__demo {
   grid-area: demo;
   position: relative;
-  width: min(100%, max(480px, (100svh - 430px) * 1.7778));
+  min-width: 0;
 }
 
 
@@ -935,7 +941,7 @@ main > section:not(.hero) {
 /* ---------- small pages: confirm, leave, errors, privacy ---------- */
 
 .note-page {
-  width: min(100% - 2 * var(--g), 760px);
+  width: var(--w);
   min-height: 78svh;
   margin-inline: auto;
   padding-block: clamp(112px, 18vh, 180px) clamp(64px, 10vh, 120px);
@@ -943,7 +949,6 @@ main > section:not(.hero) {
   align-content: start;
   gap: 18px;
 }
-main > section.note-page { width: min(100% - 2 * var(--g), 760px); }
 .clip--small { width: min(100%, 440px); margin-bottom: clamp(16px, 4vh, 40px); }
 .clip--small .cap { font-size: max(13px, 4.6cqi); width: 60cqi; margin-left: -30cqi; }
 .note-page__title {
@@ -981,7 +986,7 @@ main > section.note-page { width: min(100% - 2 * var(--g), 760px); }
 }
 
 .prose {
-  width: min(100% - 2 * var(--g), 680px);
+  width: var(--w);
   margin-inline: auto;
   padding-block: clamp(112px, 18vh, 180px) clamp(64px, 12vh, 140px);
 }
@@ -1005,6 +1010,7 @@ main > section.note-page { width: min(100% - 2 * var(--g), 760px); }
   line-height: 1.25;
 }
 .prose p, .prose li { line-height: 1.6; max-width: 60ch; }
+.prose ul, .prose p { max-width: 640px; }
 .prose ul { padding-left: 1.15em; display: grid; gap: .4em; }
 .prose li::marker { color: var(--quiet); }
 
