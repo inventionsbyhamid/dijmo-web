@@ -417,11 +417,18 @@ async fn leave_asks_first_and_only_the_post_deletes() {
     let leave = link(&mail[0].text, &format!("{BASE}/waitlist/leave?token="));
     let token = leave.split("token=").nth(1).unwrap().to_owned();
 
-    // A scanner opening the link (any number of times) deletes nothing.
+    // A scanner opening the link (any number of times) deletes nothing; the
+    // page asks, with a form that posts the token back.
     for _ in 0..3 {
         let res = t.get(&leave).await;
         assert_eq!(res.status, StatusCode::OK);
         assert_eq!(res.header("cache-control"), "no-store");
+        assert!(res.body.contains(r#"action="/waitlist/leave""#));
+        assert!(
+            res.body
+                .contains(&format!(r#"name="token" value="{token}""#)),
+            "the confirm page carries the token"
+        );
     }
     assert!(t.signup_row(&email).await.is_some());
 
