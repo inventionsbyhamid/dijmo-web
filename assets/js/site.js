@@ -1,660 +1,698 @@
-/* Dijmo: the keystroke. Plain ES2020, no dependencies.
-   Sound is off until the visitor turns it on. Haptics answer only the visitor's own actions. */
-(() => {
-  'use strict';
+/* Dijmo: the words are the edit. Plain ES2020, loaded as a module (deferred, strict), no dependencies.
+   Sound is off until the visitor turns it on. Haptics answer the visitor's own actions. */
 
-  const d = document;
-  const root = d.documentElement;
-  root.classList.add('js');
+const d = document;
+d.documentElement.classList.add('js');
 
-  const reduceQuery = matchMedia('(prefers-reduced-motion: reduce)');
-  let still = reduceQuery.matches;
-  const listen = (q, fn) => (q.addEventListener ? q.addEventListener('change', fn) : q.addListener(fn));
-  listen(reduceQuery, (e) => { still = e.matches; });
+const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+let still = reduce.matches;
+reduce.addEventListener?.('change', (e) => { still = e.matches; });
 
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const rand = (a, b) => a + Math.random() * (b - a);
-  const store = {
-    get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } },
-    set(k, v) { try { localStorage.setItem(k, v); } catch (_) { /* private mode */ } },
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const make = (tag, cls, text) => {
+  const e = d.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+};
+const rand = (a, b) => a + Math.random() * (b - a);
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (_) { /* private mode */ } },
+};
+
+// Browsers ignore vibrate() and audio until the visitor has touched the page.
+let touched = false;
+for (const t of ['pointerdown', 'keydown', 'touchstart']) addEventListener(t, () => { touched = true; }, { capture: true, passive: true });
+
+/* -- sound -- */
+
+const Sound = (() => {
+  const KEY = 'dijmo:sound';
+  // Sprite positions, [start, length] in seconds. k0–k7 are the keystrokes.
+  const MAP = {
+    k0: [0.12, 0.065], k1: [0.3047, 0.065], k2: [0.4894, 0.06], k3: [0.6691, 0.052], k4: [0.8407, 0.065],
+    k5: [1.0254, 0.057], k6: [1.2021, 0.064], k7: [1.3855, 0.063], thock: [1.5677, 0.147], tick: [1.8346, 0.056],
   };
+  const ONSET = 0.1283; // where k0 first rises above 0.02 in the source
+  const M4A = '/assets/sounds/sfx.m4a';
+  const AC = window.AudioContext || window.webkitAudioContext;
+  let on = store.get(KEY) === 'on';
+  let ctx; let master; let buffer; let noise; let bytes; let decoding;
+  let failed = false; let shift = 0; let last = -1; let voices = 0;
 
-  // Browsers ignore vibrate() and audio until the visitor has touched the page.
-  let touched = false;
-  for (const type of ['pointerdown', 'keydown', 'touchstart']) {
-    addEventListener(type, () => { touched = true; }, { capture: true, passive: true });
-  }
+  const get = (url) => fetch(url).then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); });
+  // Fetch early (no audio context needed); decode after a gesture.
+  const prefetch = () => bytes || (bytes = (d.createElement('audio').canPlayType('audio/webm; codecs="opus"')
+    ? get('/assets/sounds/sfx.webm') : Promise.reject()).catch(() => get(M4A)));
+  const decode = (b) => new Promise((res, rej) => { const p = ctx.decodeAudioData(b, res, rej); if (p && p.catch) p.catch(rej); });
 
-  /* ---------------------------------------------------------------- sound */
-
-  const Sound = (() => {
-    const KEY = 'dijmo:sound';
-    // Where each sound sits in the sprite: [start, length] in seconds.
-    const MAP = {
-      k0: [0.12, 0.0647], k1: [0.3047, 0.0647], k2: [0.4894, 0.0597], k3: [0.6691, 0.0516],
-      k4: [0.8407, 0.0646], k5: [1.0254, 0.0567], k6: [1.2021, 0.0634], k7: [1.3855, 0.0622],
-      thock: [1.5677, 0.147], tick: [1.8346, 0.0554],
-    };
-    const FIRST_ONSET = 0.1283; // where k0 first rises above 0.02 in the source
-    const AC = window.AudioContext || window.webkitAudioContext;
-
-    let on = store.get(KEY) === 'on';
-    let ctx = null;
-    let master = null;
-    let buffer = null;
-    let failed = false;
-    let shift = 0;
-    let noise = null;
-    let lastKey = -1;
-    let voices = 0;
-    let fetched = null;
-    let decoding = null;
-
-    const urls = () => {
-      const probe = d.createElement('audio');
-      const webm = probe.canPlayType && probe.canPlayType('audio/webm; codecs="opus"');
-      const list = ['/assets/sounds/sfx.m4a'];
-      if (webm) list.unshift('/assets/sounds/sfx.webm');
-      return list;
-    };
-
-    // Fetch the bytes early (no audio context needed), decode after a gesture.
-    function prefetch() {
-      if (!fetched) {
-        const list = urls();
-        fetched = list.reduce(
-          (p, url) => p.catch(() => fetch(url).then((r) => {
-            if (!r.ok) throw new Error(String(r.status));
-            return r.arrayBuffer().then((bytes) => ({ bytes, url }));
-          })),
-          Promise.reject(new Error('start')),
-        );
-        fetched.catch(() => {});
-      }
-      return fetched;
-    }
-
-    const decode = (bytes) => new Promise((res, rej) => {
-      // The callback form still works on older Safari.
-      const p = ctx.decodeAudioData(bytes, res, rej);
-      if (p && p.catch) p.catch(rej);
-    });
-
-    // AAC adds encoder delay on some decoders: find the first onset and correct for it.
-    function measureShift(buf) {
+  const load = () => decoding || (decoding = prefetch()
+    .then((b) => decode(b).catch(() => get(M4A).then(decode))) // WebM said "maybe" but won't decode
+    .then((buf) => {
+      buffer = buf;
+      // AAC can add encoder delay: find the first onset and correct for it.
       const ch = buf.getChannelData(0);
-      const end = Math.min(ch.length, Math.floor(buf.sampleRate * 0.5));
-      for (let i = 0; i < end; i++) {
-        if (Math.abs(ch[i]) > 0.02) {
-          const s = i / buf.sampleRate - FIRST_ONSET;
-          return Math.max(-0.01, Math.min(0.08, s));
-        }
-      }
-      return 0;
-    }
+      let i = 0;
+      while (i < ch.length && Math.abs(ch[i]) <= 0.02) i++;
+      shift = Math.max(-0.01, Math.min(0.08, i / buf.sampleRate - ONSET));
+    })
+    .catch(() => { failed = true; }));
 
-    function load() {
-      if (decoding) return decoding;
-      decoding = prefetch()
-        .then(async ({ bytes, url }) => {
-          try {
-            return await decode(bytes);
-          } catch (_) {
-            // WebM said "maybe" but would not decode: try AAC.
-            if (!url.endsWith('.m4a')) {
-              const r = await fetch('/assets/sounds/sfx.m4a');
-              return decode(await r.arrayBuffer());
-            }
-            throw _;
-          }
-        })
-        .then((buf) => { buffer = buf; shift = measureShift(buf); })
-        .catch(() => { failed = true; });
-      return decoding;
-    }
-
-    function context() {
-      if (ctx || !AC) return ctx;
-      try {
-        // Ambient audio follows the iPhone's silent switch.
-        if (navigator.audioSession) navigator.audioSession.type = 'ambient';
-      } catch (_) { /* not supported */ }
-      try {
-        ctx = new AC({ latencyHint: 'interactive' });
-      } catch (_) {
-        ctx = new AC();
-      }
+  function wake() {
+    if (!on || !AC) return;
+    if (!ctx) {
+      try { navigator.audioSession.type = 'ambient'; } catch (_) { /* follows the iPhone's silent switch where supported */ }
+      ctx = new AC();
       master = ctx.createGain();
       master.gain.value = 0.6;
       master.connect(ctx.destination);
-      return ctx;
     }
+    if (ctx.state !== 'running') ctx.resume().catch(() => {});
+    load();
+  }
 
-    function wake() {
-      if (!on || !AC) return;
-      context();
-      if (ctx.state !== 'running') ctx.resume().catch(() => {});
-      load();
+  // A refined synth for when the samples can't load.
+  function synth(kind, gain, rate) {
+    const c = ctx;
+    const t = c.currentTime + 0.002;
+    const out = c.createGain();
+    out.gain.value = gain;
+    out.connect(master);
+    if (!noise) {
+      noise = c.createBuffer(1, Math.floor(c.sampleRate * 0.08), c.sampleRate);
+      const n = noise.getChannelData(0);
+      for (let i = 0; i < n.length; i++) n[i] = (Math.random() * 2 - 1) * (1 - i / n.length) ** 5;
     }
+    const amp = (level, dur) => {
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0008, t);
+      g.gain.exponentialRampToValueAtTime(level, t + 0.003);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+      g.connect(out);
+      return g;
+    };
+    const click = (level, freq, q, dur) => {
+      const s = c.createBufferSource();
+      const f = c.createBiquadFilter();
+      s.buffer = noise;
+      s.playbackRate.value = rate * rand(0.85, 1.15);
+      f.type = 'bandpass';
+      f.frequency.value = freq;
+      f.Q.value = q;
+      s.connect(f).connect(amp(level, dur));
+      s.start(t);
+    };
+    const body = (level, from, to, dur) => {
+      const o = c.createOscillator();
+      o.frequency.setValueAtTime(from * rate, t);
+      o.frequency.exponentialRampToValueAtTime(to * rate, t + dur * 0.8);
+      o.connect(amp(level, dur));
+      o.start(t);
+      o.stop(t + dur + 0.02);
+    };
+    if (kind === 'thock') { body(0.7, 150, 52, 0.2); click(0.25, 900, 0.9, 0.06); }
+    else if (kind === 'tick') click(0.12, 7000, 2.5, 0.025);
+    else { click(0.45, rand(1900, 3000), 1.3, 0.045); body(0.1, rand(170, 220), 90, 0.05); }
+  }
 
-    function ready() {
-      wake();
-      return decoding || Promise.resolve();
-    }
+  function play(name, gain, rate) {
+    if (!on || !ctx || ctx.state !== 'running' || voices > 14) return;
+    if (!buffer) { if (failed) synth(name[0] === 'k' ? 'key' : name, gain, rate); return; }
+    const [at, dur] = MAP[name];
+    const s = ctx.createBufferSource();
+    const g = ctx.createGain();
+    s.buffer = buffer;
+    s.playbackRate.value = rate;
+    g.gain.value = gain;
+    s.connect(g).connect(master);
+    voices++;
+    s.onended = () => { voices--; };
+    s.start(ctx.currentTime, Math.max(0, at + shift - 0.003), dur + 0.01);
+  }
 
-    // A refined synth for when the samples can't load.
-    function synth(kind, gain, rate) {
-      const c = ctx;
-      const t = c.currentTime + 0.002;
-      if (!noise) {
-        noise = c.createBuffer(1, Math.floor(c.sampleRate * 0.08), c.sampleRate);
-        const data = noise.getChannelData(0);
-        for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 5);
-      }
-      const out = c.createGain();
-      out.gain.value = gain;
-      out.connect(master);
-      const click = (level, freq, q, dur) => {
-        const src = c.createBufferSource();
-        src.buffer = noise;
-        src.playbackRate.value = rate * rand(0.85, 1.15);
-        const bp = c.createBiquadFilter();
-        bp.type = 'bandpass';
-        bp.frequency.value = freq;
-        bp.Q.value = q;
-        const g = c.createGain();
-        g.gain.setValueAtTime(level, t);
-        g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
-        src.connect(bp).connect(g).connect(out);
-        src.start(t);
-        src.stop(t + dur + 0.02);
-      };
-      const body = (level, from, to, dur) => {
-        const o = c.createOscillator();
-        o.type = 'sine';
-        o.frequency.setValueAtTime(from * rate, t);
-        o.frequency.exponentialRampToValueAtTime(to * rate, t + dur * 0.8);
-        const g = c.createGain();
-        g.gain.setValueAtTime(0.0008, t);
-        g.gain.exponentialRampToValueAtTime(level, t + 0.004);
-        g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
-        o.connect(g).connect(out);
-        o.start(t);
-        o.stop(t + dur + 0.02);
-      };
-      if (kind === 'thock') {
-        body(0.7, 150, 52, 0.2);
-        click(0.25, 900, 0.9, 0.06);
-      } else if (kind === 'tick') {
-        click(0.12, 7000, 2.5, 0.025);
-      } else {
-        click(0.45, rand(1900, 3000), 1.3, 0.045);
-        body(0.1, rand(170, 220), 90, 0.05);
-      }
-    }
+  if (on && AC) {
+    // Remembered from last time: get the bytes ready, start on the first gesture.
+    (window.requestIdleCallback || ((fn) => setTimeout(fn, 1200)))(prefetch);
+    const first = () => { wake(); for (const t of ['pointerdown', 'keydown', 'touchend']) removeEventListener(t, first, true); };
+    for (const t of ['pointerdown', 'keydown', 'touchend']) addEventListener(t, first, true);
+  }
 
-    function play(name, gain, rate) {
-      if (!on || !ctx || ctx.state !== 'running' || voices > 14) return;
-      const kind = name[0] === 'k' ? 'key' : name;
-      if (!buffer) {
-        if (failed) synth(kind, gain, rate);
-        return;
-      }
-      const [at, dur] = MAP[name];
-      const src = ctx.createBufferSource();
-      src.buffer = buffer;
-      src.playbackRate.value = rate;
-      const g = ctx.createGain();
-      g.gain.value = gain;
-      src.connect(g).connect(master);
-      voices++;
-      src.onended = () => { voices--; };
-      src.start(ctx.currentTime, Math.max(0, at + shift - 0.003), dur + 0.01);
-    }
-
-    function key(soft = 1) {
-      let i = Math.floor(Math.random() * 8);
-      if (i === lastKey) i = (i + 1 + Math.floor(Math.random() * 7)) % 8;
-      lastKey = i;
-      play('k' + i, soft * rand(0.85, 1.15), rand(0.96, 1.04));
-    }
-
-    function set(value) {
+  return {
+    supported: Boolean(AC),
+    get on() { return on; },
+    set(value) {
       on = value;
       store.set(KEY, on ? 'on' : 'off');
       if (on) wake();
       else if (ctx && ctx.state === 'running') ctx.suspend().catch(() => {});
-    }
+    },
+    ready() { wake(); return decoding || Promise.resolve(); },
+    key(soft = 1) {
+      let i = Math.floor(Math.random() * 8);
+      if (i === last) i = (i + 1 + Math.floor(Math.random() * 7)) % 8; // never the same key twice
+      last = i;
+      play(`k${i}`, soft * rand(0.85, 1.15), rand(0.96, 1.04));
+    },
+    thock: (soft = 1) => play('thock', soft * rand(0.92, 1.05), rand(0.97, 1.02)),
+    tick: (soft = 1) => play('tick', 0.42 * soft * rand(0.85, 1.15), rand(0.95, 1.05)),
+  };
+})();
 
-    if (on && AC) {
-      // Remembered from last time: get the bytes ready, start on the first gesture.
-      const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1200));
-      idle(() => prefetch());
-      const first = () => {
-        wake();
-        for (const type of ['pointerdown', 'keydown', 'touchend']) removeEventListener(type, first, true);
-      };
-      for (const type of ['pointerdown', 'keydown', 'touchend']) addEventListener(type, first, true);
-    }
+/* -- haptics -- */
 
-    return {
-      get supported() { return Boolean(AC); },
-      get on() { return on; },
-      set,
-      ready,
-      key,
-      thock: (soft = 1) => play('thock', soft * rand(0.92, 1.05), rand(0.97, 1.02)),
-      tick: (soft = 1) => play('tick', 0.42 * soft * rand(0.85, 1.15), rand(0.95, 1.05)),
-    };
-  })();
-
-  /* -------------------------------------------------------------- haptics */
-
-  const Haptic = (() => {
-    const canVibrate = typeof navigator.vibrate === 'function';
-    // iOS 17.4+ has a native switch control; toggling it plays the system haptic (iOS 18+).
-    const canSwitch = !canVibrate && 'switch' in HTMLInputElement.prototype;
-    let label = null;
-
-    function tap(ms) {
-      if (still || !touched || !canVibrate) return;
-      try { navigator.vibrate(ms); } catch (_) { /* blocked */ }
-    }
-
-    function enter() {
+const Haptic = (() => {
+  const canVibrate = typeof navigator.vibrate === 'function';
+  // iOS 17.4+ has a native switch control; toggling it through its label plays the system haptic (iOS 18+).
+  const canSwitch = !canVibrate && 'switch' in HTMLInputElement.prototype;
+  let label = null;
+  const tap = (ms) => {
+    if (still || !touched || !canVibrate) return;
+    try { navigator.vibrate(ms); } catch (_) { /* blocked */ }
+  };
+  return {
+    tap,
+    enter() {
       if (still) return;
       if (canVibrate) { tap(18); return; }
       if (!canSwitch) return;
       if (!label) {
-        label = d.createElement('label');
-        label.className = 'haptic';
+        label = make('label', 'haptic');
         label.setAttribute('aria-hidden', 'true');
-        const box = d.createElement('input');
-        box.type = 'checkbox';
-        box.setAttribute('switch', '');
-        box.tabIndex = -1;
-        label.append(box);
+        label.innerHTML = '<input type="checkbox" switch tabindex="-1">';
         d.body.append(label);
       }
       label.click();
-    }
-
-    return { tap, enter };
-  })();
-
-  /* ---------------------------------------------------------- sound button */
-
-  const soundButton = d.querySelector('[data-sound]');
-  if (soundButton && Sound.supported) {
-    const state = soundButton.querySelector('[data-sound-state]');
-    const paint = () => {
-      soundButton.setAttribute('aria-pressed', String(Sound.on));
-      if (state) state.textContent = Sound.on ? 'on' : 'off';
-    };
-    paint();
-    soundButton.hidden = false;
-    soundButton.addEventListener('click', () => {
-      Sound.set(!Sound.on);
-      paint();
-      if (Sound.on) Sound.ready().then(() => Sound.key(0.9));
-    });
-  }
-
-  /* --------------------------------------------------------------- typing */
-
-  const pause = (ch) => (ch === ' ' ? rand(70, 150) : rand(40, 95) + (Math.random() < 0.08 ? 150 : 0));
-
-  // Types a heading letter by letter. Screen readers get the whole sentence at once.
-  function typer(el) {
-    const text = el.textContent.trim();
-    const spoken = d.createElement('span');
-    spoken.className = 'sr-only';
-    spoken.textContent = text;
-    const shown = d.createElement('span');
-    shown.setAttribute('aria-hidden', 'true');
-    const chars = Array.from(text, (c) => {
-      const s = d.createElement('span');
-      s.className = 'ch';
-      s.textContent = c;
-      shown.append(s);
-      return s;
-    });
-    const caret = d.createElement('span');
-    caret.className = 'caret';
-    el.replaceChildren(spoken, shown);
-    return {
-      async run(soft) {
-        if (still) {
-          for (const s of chars) s.classList.add('on');
-          shown.append(caret);
-          return;
-        }
-        el.classList.add('is-typing');
-        shown.prepend(caret);
-        for (const s of chars) {
-          s.classList.add('on');
-          s.after(caret);
-          if (s.textContent !== ' ') Sound.key(soft);
-          await sleep(pause(s.textContent));
-        }
-        el.classList.remove('is-typing');
-      },
-    };
-  }
-
-  /* ------------------------------------------------------- story moments */
-
-  const typers = new Map();
-  for (const el of d.querySelectorAll('[data-type], [data-ask]')) typers.set(el, typer(el));
-  const typerIn = (el, sel) => typers.get(el.querySelector(sel) || el);
-
-  const at = (ms, fn) => setTimeout(fn, still ? 0 : ms);
-
-  const moments = {
-    problem() {
-      [250, 550, 850, 1150].forEach((ms) => at(ms + 60, () => Sound.key(0.5)));
-      at(1950, () => Sound.tick(0.8));
-    },
-    turn(el) {
-      at(250, async () => {
-        await typerIn(el, '[data-type]').run(0.6);
-        if (!still) await sleep(420);
-        Sound.thock(0.5); // the question lands like Enter
-      });
-    },
-    record() {
-      at(320, () => Sound.tick(0.7));
-    },
-    async say(el) {
-      await typerIn(el, '[data-ask]').run(0.45);
-      if (!still) await sleep(1300);
-      el.classList.add('is-done');
-      Sound.key(0.7);
-      at(260, () => Sound.tick(0.8));
-    },
-    post() {
-      at(200, () => Sound.tick(0.7));
-    },
-    promise() {
-      at(2300, () => Sound.key(0.85));
-    },
-    outcome() {
-      at(1700, () => Sound.tick());
     },
   };
+})();
 
-  function fire(el) {
-    el.classList.add('is-on');
-    Haptic.tap(3);
-    const fn = moments[el.dataset.moment];
-    if (fn) fn(el);
-  }
+/* -- sound button -- */
 
-  const momentEls = d.querySelectorAll('[data-moment]');
-  if ('IntersectionObserver' in window) {
-    const io = new IntersectionObserver((entries) => {
-      for (const e of entries) {
-        if (!e.isIntersecting) continue;
-        io.unobserve(e.target);
-        fire(e.target);
+const soundButton = d.querySelector('[data-sound]');
+if (soundButton && Sound.supported) {
+  const state = soundButton.querySelector('[data-sound-state]');
+  const paint = () => {
+    soundButton.setAttribute('aria-pressed', String(Sound.on));
+    if (state) state.textContent = Sound.on ? 'on' : 'off';
+  };
+  paint();
+  soundButton.hidden = false;
+  soundButton.addEventListener('click', () => {
+    Sound.set(!Sound.on);
+    paint();
+    if (Sound.on) Sound.ready().then(() => Sound.key(0.9));
+  });
+}
+
+/* -- typing -- */
+
+const pause = (ch) => (ch === ' ' ? rand(70, 150) : rand(40, 95) + (Math.random() < 0.08 ? 150 : 0));
+
+// Types a heading letter by letter. Screen readers get the whole sentence at once.
+function typer(node) {
+  const text = node.textContent.trim();
+  const shown = make('span');
+  const caret = make('span', 'caret');
+  shown.setAttribute('aria-hidden', 'true');
+  const chars = Array.from(text, (c) => shown.appendChild(make('span', 'ch', c)));
+  node.replaceChildren(make('span', 'sr-only', text), shown);
+  return {
+    async run(soft) {
+      if (still) {
+        for (const s of chars) s.classList.add('on');
+        shown.append(caret);
+        return;
       }
-    }, { rootMargin: '0px 0px -30% 0px' });
-    momentEls.forEach((el) => io.observe(el));
-  } else {
-    momentEls.forEach(fire);
+      node.classList.add('is-typing');
+      shown.prepend(caret);
+      for (const s of chars) {
+        s.classList.add('on');
+        s.after(caret);
+        if (s.textContent !== ' ') Sound.key(soft);
+        await sleep(pause(s.textContent));
+      }
+      node.classList.remove('is-typing');
+    },
+  };
+}
+
+// A command line that types itself, key by key.
+async function typeInto(el, text, soft, wait = sleep) {
+  const line = el.parentElement;
+  line.classList.add('is-typing');
+  for (let i = 1; i <= text.length; i++) {
+    el.textContent = text.slice(0, i);
+    if (text[i - 1] !== ' ') Sound.key(soft);
+    await wait(pause(text[i - 1]));
+  }
+  line.classList.remove('is-typing');
+}
+
+async function erase(el, wait = sleep) {
+  const text = el.textContent;
+  for (let i = text.length; i > 0; i -= 3) {
+    el.textContent = text.slice(0, i);
+    await wait(16);
+  }
+  el.textContent = '';
+}
+
+/* -- story moments -- */
+
+const typers = new Map();
+for (const el of d.querySelectorAll('[data-type], [data-ask]')) typers.set(el, typer(el));
+const typerIn = (el, sel) => typers.get(el.querySelector(sel));
+const at = (ms, fn) => { if (!still) setTimeout(fn, ms); };
+
+const moments = {
+  async problem(el) {
+    [250, 500, 750, 1000, 1250].forEach((ms) => at(ms + 60, () => Sound.key(0.5)));
+    at(1950, () => Sound.tick(0.6));
+    const line = el.querySelector('.cmd--quiet [data-cmd]');
+    const pile = el.querySelector('[data-pile]');
+    if (still || !line || !pile) return;
+    // One typed command clears the jargon: a first glimpse of the answer.
+    await sleep(3000);
+    el.classList.add('is-asking');
+    await sleep(300);
+    await typeInto(line, 'make it simple', 0.45);
+    await sleep(420);
+    Sound.thock(0.45);
+    el.classList.add('is-struck');
+    [0, 120, 240, 360, 480].forEach((ms) => setTimeout(() => Sound.tick(0.5), ms + 80));
+    await sleep(1100);
+    const gap = parseFloat(getComputedStyle(el).rowGap) || 0;
+    el.style.setProperty('--fold', `${pile.offsetHeight + gap}px`);
+    el.classList.add('is-folded');
+  },
+  async turn(el) {
+    const t = typerIn(el, '[data-type]');
+    if (still) { t.run(); return; }
+    await sleep(250);
+    await t.run(0.6);
+    await sleep(420);
+    Sound.thock(0.5); // the question lands like Enter
+  },
+  record() {
+    [300, 600, 900, 1200].forEach((ms) => at(ms + 40, () => { Sound.tick(0.6); Sound.key(0.22); }));
+  },
+  async say(el) {
+    await typerIn(el, '[data-ask]').run(0.45);
+    if (still) return;
+    await sleep(450);
+    el.classList.add('is-preview');
+    Sound.tick(0.45);
+    await sleep(1400);
+    el.classList.add('is-done');
+    Sound.key(0.8);
+    await sleep(260);
+    const preview = el.querySelector('[data-preview]');
+    if (preview) preview.textContent = '14 pauses cut. 0:41 shorter.';
+    Sound.tick(0.6);
+  },
+  post() {
+    [700, 1000, 1300].forEach((ms) => at(ms, () => Sound.tick(0.55)));
+  },
+  promise() {
+    at(2300, () => Sound.key(0.85));
+  },
+  outcome() {
+    at(1700, () => Sound.tick());
+  },
+};
+
+function fire(el) {
+  el.classList.add('is-on');
+  Haptic.tap(3);
+  const fn = moments[el.dataset.moment];
+  if (fn) fn(el);
+}
+
+const momentEls = d.querySelectorAll('[data-moment]');
+if ('IntersectionObserver' in window) {
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      io.unobserve(e.target);
+      fire(e.target);
+    }
+  }, { rootMargin: '0px 0px -30% 0px' });
+  momentEls.forEach((el) => io.observe(el));
+} else {
+  momentEls.forEach(fire);
+}
+
+/* -- hero: the words are the edit -- */
+
+function takeDemo(take) {
+  const box = take.querySelector('[data-words]');
+  const timeEl = take.querySelector('[data-time]');
+  const rule = take.querySelector('[data-rule]');
+  const under = take.querySelector('[data-under]');
+  const cmd = take.querySelector('[data-cmd]');
+  const toggle = d.querySelector('[data-demo-toggle]');
+  if (still || !box || !cmd) return; // the static before and after stay
+
+  // The paragraph is laid out invisibly; a visible copy of each word is placed over it
+  // with transforms, so edits reflow smoothly and the page's layout never shifts.
+  take.classList.add('is-live');
+  box.append(under);
+  const items = Array.from(box.querySelectorAll('.w'), (m) => {
+    const v = m.cloneNode(true);
+    v.className = m.className.replace(/\bw\b/, 'wv');
+    box.append(v);
+    const c = m.classList;
+    return { m, v, f: c.contains('f'), g: c.contains('g'), k: c.contains('k'), gone: false, sx: 1 };
+  });
+
+  const FULL = 72;
+  let secs = FULL;
+  let shown = FULL;
+  let raf = 0;
+  const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+  function showTime(target, now) {
+    secs = target;
+    const k = target / FULL;
+    rule.style.transform = `scaleX(${k})`;
+    timeEl.style.transform = `translateX(${-(1 - k) * rule.offsetWidth}px)`;
+    cancelAnimationFrame(raf);
+    if (now) { shown = target; timeEl.textContent = fmt(target); return; }
+    const from = shown;
+    const t0 = performance.now();
+    const step = (t) => {
+      const p = Math.min(1, (t - t0) / 650);
+      shown = Math.round(from + (target - from) * (1 - Math.pow(1 - p, 3)));
+      timeEl.textContent = fmt(shown);
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
   }
 
-  /* ------------------------------------------------------------ hero demo */
+  const pos = (it) => `translate(${it.m.offsetLeft}px, ${it.m.offsetTop}px)${it.sx === 1 ? '' : ` scaleX(${it.sx})`}`;
+  // Words on the same line slide; a word that changes line fades out, moves, and fades back in.
+  const place = (hop = true) => {
+    for (const it of items) {
+      if (it.gone) continue;
+      const { v, m } = it;
+      it.tf = pos(it);
+      if (hop && it.y !== undefined && m.offsetTop !== it.y) {
+        v.classList.add('is-hop');
+        setTimeout(() => {
+          v.style.transition = 'none';
+          v.style.transform = it.tf;
+          void v.offsetWidth;
+          v.style.transition = '';
+          v.classList.remove('is-hop');
+        }, 130);
+      } else v.style.transform = it.tf;
+      it.y = m.offsetTop;
+    }
+  };
 
-  function heroDemo(box) {
-    const frame = box.querySelector('[data-frame]');
-    const track = box.querySelector('[data-track]');
-    const sweep = box.querySelector('[data-sweep]');
-    const line = box.querySelector('[data-line]');
-    const toggle = d.querySelector('[data-demo-toggle]');
+  function settle() {
+    take.classList.add('no-tx');
+    box.classList.add('is-measuring'); // every word in flow: the raw height
+    box.style.minHeight = '';
+    box.style.minHeight = `${box.offsetHeight}px`;
+    box.classList.remove('is-measuring');
+    place(false);
+    showTime(secs, true);
+    void box.offsetWidth;
+    take.classList.remove('no-tx');
+  }
+  settle();
+  if (window.ResizeObserver) new ResizeObserver(() => settle()).observe(box);
+  if (d.fonts && d.fonts.ready) d.fonts.ready.then(settle);
 
-    if (still) {
-      frame.classList.add('is-vertical');
+  // Pausing: the Pause button, off-screen, or a hidden tab.
+  let paused = false;
+  let visible = true;
+  let release = null;
+  const blocked = () => paused || !visible || d.hidden;
+  const resume = () => { if (release && !blocked()) { const r = release; release = null; r(); } };
+  const wait = async (ms) => {
+    await sleep(ms);
+    while (blocked()) await new Promise((r) => { release = r; });
+  };
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(([e]) => { visible = e.isIntersecting; resume(); }).observe(take);
+  }
+  d.addEventListener('visibilitychange', resume);
+  if (toggle) {
+    toggle.hidden = false;
+    toggle.addEventListener('click', () => {
+      paused = !paused;
+      toggle.textContent = paused ? 'Play the demo' : 'Pause the demo';
+      resume();
+    });
+  }
+
+  // Demo cuts tap only for a visitor who has touched the page and turned sound on.
+  const tap = () => { if (Sound.on) Haptic.tap(4); };
+  const drop = (it) => { it.gone = true; it.m.classList.add('is-gone'); };
+  const said = (m) => 90 + m.textContent.length * 12 + (/\.$/.test(m.textContent) ? 220 : /,$/.test(m.textContent) ? 70 : 0);
+
+  const steps = [
+    ['cut the ums', async () => {
+      for (const it of items.filter((i) => i.f && !i.gone)) {
+        it.v.classList.add('is-struck');
+        Sound.tick(0.7);
+        tap();
+        await wait(220);
+        it.v.classList.add('is-out');
+        await wait(170);
+        drop(it);
+        place();
+        showTime(secs - 1);
+        await wait(420);
+      }
+    }],
+    ['remove the long pauses', async () => {
+      for (const it of items.filter((i) => i.g && !i.gone)) {
+        it.sx = 0.001;
+        it.v.style.transform = pos(it);
+        it.v.classList.add('is-out');
+        Sound.key(0.35);
+        tap();
+        await wait(200);
+        drop(it);
+        place();
+        showTime(secs - parseInt(it.m.textContent, 10));
+        await wait(380);
+      }
+    }],
+    ['make it 30 seconds', async () => {
+      const weak = items.filter((i) => i.k && !i.gone);
+      weak.forEach((it) => it.v.classList.add('is-out'));
+      Sound.tick(0.5);
+      await wait(560);
+      weak.forEach(drop);
+      place();
+      showTime(28);
+      await wait(300);
+    }],
+    ['add captions', async () => {
+      const words = items.filter((i) => !i.gone);
+      const mark = (m) => {
+        under.style.transform = `translate(${m.offsetLeft}px, ${m.offsetTop + m.offsetHeight * 0.88}px) scaleX(${m.offsetWidth / 100})`;
+      };
+      take.classList.add('no-tx');
+      mark(words[0].m);
+      void box.offsetWidth;
+      take.classList.remove('no-tx');
+      take.classList.add('is-reading');
+      for (const it of words) {
+        mark(it.m);
+        it.v.classList.add('is-said');
+        await wait(said(it.m));
+      }
+      await wait(400);
+      under.style.opacity = '0';
+    }],
+    ['undo all', async () => {
+      take.classList.remove('is-reading');
+      under.style.opacity = '';
+      const back = items.filter((it) => it.gone);
+      for (const it of items) it.v.classList.remove('is-said', 'is-struck');
+      for (const it of back) { it.gone = false; it.sx = 1; it.y = undefined; it.m.classList.remove('is-gone'); it.v.style.transition = 'none'; }
+      place();
+      void box.offsetWidth;
+      for (const it of back) it.v.style.transition = '';
+      Sound.tick(0.5);
+      showTime(FULL);
+      await wait(320);
+      for (const it of back) it.v.classList.remove('is-out');
+    }, true],
+  ];
+
+  (async () => {
+    await wait(900);
+    for (;;) {
+      for (const [say, act, back] of steps) {
+        await typeInto(cmd, say, 0.4, wait);
+        await wait(rand(380, 520));
+        Sound.thock(0.45);
+        await act();
+        await wait(back ? 1900 : 1500);
+        await erase(cmd, wait);
+        await wait(420);
+      }
+    }
+  })();
+}
+
+const take = d.querySelector('[data-take]');
+if (take) takeDemo(take);
+
+/* -- the waitlist line -- */
+
+const WORDS = {
+  sent: 'Check your inbox. Open the link we sent to finish joining.',
+  invalid: 'That email doesn’t look right. Check it and try again.',
+  slow_down: 'Too many tries in a short time. Wait a few minutes, then try again.',
+  error: 'Something went wrong on our side. Try again in a moment.',
+  offline: 'That didn’t go through. Check your connection and try again.',
+};
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function joinForm(form) {
+  const input = form.querySelector('[data-entry]');
+  const status = form.querySelector('[data-join-status]');
+  const mirror = form.querySelector('[data-mirror]');
+  const caret = form.querySelector('[data-entry-caret]');
+  const honeypot = form.elements.namedItem('website');
+  const timing = form.elements.namedItem('t');
+  let busy = false;
+
+  form.noValidate = true;
+
+  // A thick caret needs the caret position, which email inputs don't expose.
+  // inputmode="email" keeps the email keyboard; the server checks the address anyway.
+  try { input.type = 'text'; } catch (_) { /* keep email */ }
+  const thickCaret = input.selectionStart !== null && mirror && caret;
+  if (thickCaret) form.classList.add('has-caret');
+
+  function place() {
+    if (!thickCaret) return;
+    const focused = d.activeElement === input;
+    if (!focused || input.selectionStart !== input.selectionEnd || input.readOnly) {
+      caret.classList.remove('on', 'blink');
+      return;
+    }
+    mirror.textContent = input.value.slice(0, input.selectionStart);
+    const x = Math.min(mirror.offsetWidth - input.scrollLeft, input.clientWidth);
+    caret.style.transform = `translateX(${Math.max(0, x)}px)`;
+    caret.classList.remove('blink');
+    void caret.offsetWidth;
+    caret.classList.add('on', 'blink');
+  }
+
+  for (const type of ['input', 'focus', 'click', 'keyup', 'select', 'scroll']) input.addEventListener(type, place);
+  d.addEventListener('selectionchange', () => { if (d.activeElement === input) place(); });
+  input.addEventListener('blur', () => caret && caret.classList.remove('on', 'blink'));
+  addEventListener('resize', place, { passive: true });
+
+  const tell = (word) => {
+    status.textContent = '';
+    requestAnimationFrame(() => { status.textContent = WORDS[word] || ''; });
+  };
+
+  input.addEventListener('input', (e) => {
+    const deleting = e.inputType && e.inputType.startsWith('delete');
+    Sound.key(deleting ? 0.6 : 1);
+    Haptic.tap(5);
+    if (input.getAttribute('aria-invalid')) {
+      input.removeAttribute('aria-invalid');
+      status.textContent = '';
+    }
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (busy || form.classList.contains('is-sent')) return;
+    const email = input.value.trim();
+    if (!EMAIL.test(email) || email.length > 254) {
+      input.setAttribute('aria-invalid', 'true');
+      tell('invalid');
+      Sound.key(0.6);
+      input.focus();
       return;
     }
 
-    let paused = false;
-    let visible = true;
-    let release = null;
-    const blocked = () => paused || !visible || d.hidden;
-    const resume = () => {
-      if (release && !blocked()) { const r = release; release = null; r(); }
-    };
-    const wait = async (ms) => {
-      await sleep(ms);
-      while (blocked()) await new Promise((r) => { release = r; });
-    };
+    // Enter lands: the thock, the tap, the playhead runs the line.
+    busy = true;
+    Sound.thock(1);
+    Haptic.enter();
+    form.classList.add('is-sending');
 
-    if ('IntersectionObserver' in window) {
-      new IntersectionObserver(([e]) => {
-        visible = e.isIntersecting;
-        box.classList.toggle('is-still', !visible || paused);
-        resume();
-      }).observe(box);
-    }
-    d.addEventListener('visibilitychange', resume);
-
-    if (toggle) {
-      toggle.hidden = false;
-      toggle.addEventListener('click', () => {
-        paused = !paused;
-        toggle.textContent = paused ? 'Play the demo' : 'Pause the demo';
-        box.classList.toggle('is-still', paused);
-        resume();
+    let outcome = 'error';
+    try {
+      const res = await fetch(form.action, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          email,
+          website: honeypot ? honeypot.value : '',
+          t: timing ? timing.value : '',
+        }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) outcome = 'sent';
+      else if (res.status === 429 || data.error === 'slow_down') outcome = 'slow_down';
+      else if (res.status === 422 || data.error === 'invalid') outcome = 'invalid';
+    } catch (_) {
+      outcome = 'offline';
     }
 
-    const run = (back) => {
-      sweep.classList.remove('is-forward', 'is-back');
-      void sweep.offsetWidth; // restart the animation
-      sweep.classList.add(back ? 'is-back' : 'is-forward');
-    };
-
-    const steps = [
-      { say: 'make it vertical for tiktok', land: 330, apply: () => frame.classList.add('is-vertical') },
-      { say: 'add captions', land: 380, apply: () => frame.classList.add('has-captions') },
-      {
-        say: 'cut the long pause',
-        land: 120,
-        apply: async () => {
-          track.classList.add('is-preview');
-          await wait(650);
-          track.classList.add('is-cut');
-          Sound.tick(0.6);
-        },
-      },
-      { say: 'warmer, like film', land: 60, apply: () => frame.classList.add('is-warm') },
-      {
-        say: 'undo all',
-        back: true,
-        land: 60,
-        apply: () => {
-          frame.classList.remove('is-vertical', 'has-captions', 'is-warm');
-          track.classList.remove('is-preview', 'is-cut');
-        },
-      },
-    ];
-
-    async function type(text) {
-      box.classList.add('is-typing');
-      for (let i = 1; i <= text.length; i++) {
-        line.textContent = text.slice(0, i);
-        if (text[i - 1] !== ' ') Sound.key(0.4);
-        await wait(pause(text[i - 1]));
-      }
-      box.classList.remove('is-typing');
+    busy = false;
+    form.classList.remove('is-sending');
+    if (outcome === 'sent') {
+      form.classList.add('is-sent');
+      input.readOnly = true;
+      input.blur();
+      Sound.tick();
+    } else if (outcome === 'invalid') {
+      input.setAttribute('aria-invalid', 'true');
     }
+    tell(outcome);
+  });
+}
 
-    async function erase() {
-      const text = line.textContent;
-      box.classList.add('is-typing');
-      for (let i = text.length; i > 0; i -= 3) {
-        line.textContent = text.slice(0, i);
-        await wait(16);
-      }
-      line.textContent = '';
-      box.classList.remove('is-typing');
-    }
+const form = d.querySelector('[data-join]');
+if (form) joinForm(form);
 
-    (async () => {
-      let first = true;
-      for (;;) {
-        for (const step of steps) {
-          if (first) {
-            await wait(1200); // the first request is already typed in the HTML
-            first = false;
-          } else {
-            await type(step.say);
-            await wait(rand(380, 520));
-          }
-          Sound.thock(0.45);
-          run(step.back);
-          await wait(step.land);
-          Sound.tick(0.7);
-          await step.apply();
-          await wait(step.back ? 1500 : 2000);
-          await erase();
-          await wait(420);
-        }
+/* -- confirm page: the "um" is cut from the headline -- */
+
+const party = d.querySelector('[data-celebrate]');
+if (party && !still) {
+  const text = party.textContent.trim();
+  const cut = text.indexOf(' ');
+  if (cut > 0) {
+    const shown = make('span');
+    const um = make('span', 'celebrate__um', 'um,');
+    const rest = make('span', 'celebrate__rest', text.slice(cut + 1));
+    shown.setAttribute('aria-hidden', 'true');
+    shown.append(`${text.slice(0, cut)} `, um, ' ', rest);
+    party.replaceChildren(make('span', 'sr-only', text), shown);
+    setTimeout(async () => {
+      um.classList.add('is-struck');
+      Sound.tick(0.7);
+      await sleep(320);
+      um.classList.add('is-out');
+      await sleep(220);
+      if (rest.offsetTop === um.offsetTop) {
+        rest.style.transform = `translateX(${um.offsetLeft - rest.offsetLeft}px)`;
+        Sound.key(0.5);
+        await sleep(650);
       }
-    })();
+      rest.style.transition = 'none';
+      um.hidden = true;
+      rest.style.transform = '';
+      void rest.offsetWidth;
+      rest.style.transition = '';
+    }, 900);
   }
-
-  const demo = d.querySelector('[data-demo]');
-  if (demo) heroDemo(demo);
-
-  /* ------------------------------------------------------ the waitlist line */
-
-  const WORDS = {
-    sent: 'Check your inbox. Open the link we sent to finish joining.',
-    invalid: 'That email doesn’t look right. Check it and try again.',
-    slow_down: 'Too many tries in a short time. Wait a few minutes, then try again.',
-    error: 'Something went wrong on our side. Try again in a moment.',
-    offline: 'That didn’t go through. Check your connection and try again.',
-  };
-  const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  function joinForm(form) {
-    const input = form.querySelector('[data-entry]');
-    const status = form.querySelector('[data-join-status]');
-    const mirror = form.querySelector('[data-mirror]');
-    const caret = form.querySelector('[data-entry-caret]');
-    const honeypot = form.elements.namedItem('website');
-    const timing = form.elements.namedItem('t');
-    let busy = false;
-
-    form.noValidate = true;
-
-    // A thick caret needs the caret position, which email inputs don't expose.
-    // inputmode="email" keeps the email keyboard; the server checks the address anyway.
-    try { input.type = 'text'; } catch (_) { /* keep email */ }
-    const thickCaret = input.selectionStart !== null && mirror && caret;
-    if (thickCaret) form.classList.add('has-caret');
-
-    function place() {
-      if (!thickCaret) return;
-      const focused = d.activeElement === input;
-      if (!focused || input.selectionStart !== input.selectionEnd || input.readOnly) {
-        caret.classList.remove('on', 'blink');
-        return;
-      }
-      mirror.textContent = input.value.slice(0, input.selectionStart);
-      const x = Math.min(mirror.offsetWidth - input.scrollLeft, input.clientWidth);
-      caret.style.transform = `translateX(${Math.max(0, x)}px)`;
-      caret.classList.remove('blink');
-      void caret.offsetWidth;
-      caret.classList.add('on', 'blink');
-    }
-
-    for (const type of ['input', 'focus', 'click', 'keyup', 'select', 'scroll']) input.addEventListener(type, place);
-    d.addEventListener('selectionchange', () => { if (d.activeElement === input) place(); });
-    input.addEventListener('blur', () => caret && caret.classList.remove('on', 'blink'));
-    addEventListener('resize', place, { passive: true });
-
-    const tell = (word) => {
-      status.textContent = '';
-      requestAnimationFrame(() => { status.textContent = WORDS[word] || ''; });
-    };
-
-    input.addEventListener('input', (e) => {
-      const deleting = e.inputType && e.inputType.startsWith('delete');
-      Sound.key(deleting ? 0.6 : 1);
-      Haptic.tap(5);
-      if (input.getAttribute('aria-invalid')) {
-        input.removeAttribute('aria-invalid');
-        status.textContent = '';
-      }
-    });
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if (busy || form.classList.contains('is-sent')) return;
-      const email = input.value.trim();
-      if (!EMAIL.test(email) || email.length > 254) {
-        input.setAttribute('aria-invalid', 'true');
-        tell('invalid');
-        Sound.key(0.6);
-        input.focus();
-        return;
-      }
-
-      // Enter lands: the thock, the tap, the playhead runs the line.
-      busy = true;
-      Sound.thock(1);
-      Haptic.enter();
-      form.classList.add('is-sending');
-
-      let outcome = 'error';
-      try {
-        const res = await fetch(form.action, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          credentials: 'same-origin',
-          body: JSON.stringify({
-            email,
-            website: honeypot ? honeypot.value : '',
-            t: timing ? timing.value : '',
-          }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && data.ok) outcome = 'sent';
-        else if (res.status === 429 || data.error === 'slow_down') outcome = 'slow_down';
-        else if (res.status === 422 || data.error === 'invalid') outcome = 'invalid';
-      } catch (_) {
-        outcome = 'offline';
-      }
-
-      busy = false;
-      form.classList.remove('is-sending');
-      if (outcome === 'sent') {
-        form.classList.add('is-sent');
-        input.readOnly = true;
-        input.blur();
-        Sound.tick();
-      } else if (outcome === 'invalid') {
-        input.setAttribute('aria-invalid', 'true');
-      }
-      tell(outcome);
-    });
-  }
-
-  const form = d.querySelector('[data-join]');
-  if (form) joinForm(form);
-
-  /* ---------------------------------------------- a small celebration edit */
-
-  const party = d.querySelector('[data-celebrate]');
-  if (party && !still) {
-    setTimeout(() => {
-      party.classList.add('is-on');
-      const sweep = party.querySelector('[data-sweep]');
-      if (sweep) sweep.classList.add('is-forward');
-      Sound.thock(0.6);
-    }, 500);
-  }
-})();
+}

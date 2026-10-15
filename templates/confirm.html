@@ -2,17 +2,8 @@
 {% block head %}<meta name="robots" content="noindex">{% endblock %}
 {% block body %}
 <section class="note-page">
-  {%- if outcome == "confirmed" || outcome == "already" %}
-  <div class="clip clip--small" data-celebrate aria-hidden="true">
-    <div class="frame frame--done">
-      {% include "partials/scene.html" %}
-      <p class="cap cap--on"><span>you’re</span> <span>in.</span></p>
-    </div>
-    <div class="sweep" data-sweep></div>
-  </div>
-  {%- endif %}
   {%- if outcome == "confirmed" %}
-  <h1 class="note-page__title">You’re on the list.</h1>
+  <h1 class="note-page__title" data-celebrate>You’re on the list.</h1>
   <p class="note-page__body">Thank you. We’ll write when Dijmo is ready for you to try.</p>
   <p class="note-page__next"><a class="text-link" href="{{ base_url }}/">Back to the home page</a></p>
   {%- else if outcome == "already" %}

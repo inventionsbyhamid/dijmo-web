@@ -3,30 +3,24 @@
 <section class="hero" aria-labelledby="hero-title">
   <h1 class="hero__title" id="hero-title"><span class="hero__phrase">Say what you want,</span> and it’s done.</h1>
   <div class="hero__side">
-    <p class="hero__lede">Dijmo is a video editor you talk to, made for people who aren’t editors.</p>
+    <p class="hero__lede">Dijmo is a video editor you talk to. Change the words, and the video follows.</p>
     <a class="hero__join" href="#join">Join the waitlist</a>
   </div>
 
   <div class="hero__demo">
-    <div class="demo" data-demo aria-hidden="true">
-      <div class="clip">
-        <div class="frame" data-frame>
-          {% include "partials/scene.html" %}
-          <div class="grade" data-grade><div class="grade__tint"></div></div>
-          <p class="cap" data-cap><span>we</span> <span>made</span> <span>it</span> <span>to</span> <span>the</span> <span>coast</span></p>
-          <div class="shutter shutter--l"></div>
-          <div class="shutter shutter--r"></div>
-        </div>
-        <div class="track" data-track>
-          <svg class="track__seg track__seg--a" viewBox="0 0 230 40" preserveAspectRatio="none"><path d="M2 20h2M8 14v12M14 9v22M20 15v10M26 6v28M32 12v16M38 17v6M44 10v20M50 4v32M56 13v14M62 18v4M68 11v18M74 7v26M80 14v12M86 9v22M92 16v8M98 12v16M104 5v30M110 13v14M116 17v6M122 8v24M128 12v16M134 15v10M140 6v28M146 11v18M152 16v8M158 9v22M164 13v14M170 7v26M176 15v10M182 10v20M188 14v12M194 18v4M200 12v16M206 8v24M212 15v10M218 17v6M224 19v2"/></svg>
-          <svg class="track__seg track__seg--gap" viewBox="0 0 70 40" preserveAspectRatio="none"><path d="M2 20h66"/></svg>
-          <svg class="track__seg track__seg--b" viewBox="0 0 200 40" preserveAspectRatio="none"><path d="M4 18v4M10 12v16M16 6v28M22 10v20M28 15v10M34 8v24M40 13v14M46 5v30M52 11v18M58 16v8M64 9v22M70 14v12M76 7v26M82 12v16M88 17v6M94 10v20M100 6v28M106 13v14M112 9v22M118 15v10M124 11v18M130 7v26M136 14v12M142 18v4M148 10v20M154 12v16M160 6v28M166 15v10M172 11v18M178 16v8M184 13v14M190 18v4M196 19v2"/></svg>
-        </div>
-        <div class="sweep" data-sweep></div>
+    <div class="take" data-take aria-hidden="true">
+      <div class="take__clip">
+        <div class="take__meta"><span class="take__rule" data-rule></span><span class="take__time" data-time>1:12</span></div>
+        <p class="take__words" data-words><span class="w">Okay,</span> <span class="w">so,</span> <span class="w f">um,</span> <span class="w">this</span> <span class="w">is</span> <span class="w">the</span> <span class="w">trick</span> <span class="w">my</span> <span class="w">grandmother</span> <span class="w">taught</span> <span class="w">me.</span> <span class="w g">8s</span> <span class="w">You</span> <span class="w">salt</span> <span class="w">the</span> <span class="w">onions</span> <span class="w">first,</span> <span class="w f">like,</span> <span class="w">before</span> <span class="w">the</span> <span class="w">pan</span> <span class="w">is</span> <span class="w">even</span> <span class="w">hot.</span> <span class="w">And</span> <span class="w f">uh,</span> <span class="w">they</span> <span class="w">go</span> <span class="w">soft</span> <span class="w">and</span> <span class="w">sweet,</span> <span class="w f">you know,</span> <span class="w">instead</span> <span class="w">of</span> <span class="w">burnt.</span> <span class="w g">9s</span> <span class="w k">I</span> <span class="w k">didn’t</span> <span class="w k">believe</span> <span class="w k">her</span> <span class="w k">for</span> <span class="w k">years.</span> <span class="w g">7s</span> <span class="w k">So,</span> <span class="w f k">um,</span> <span class="w k">anyway.</span> <span class="w g">8s</span> <span class="w">And</span> <span class="w">honestly,</span> <span class="w f">like,</span> <span class="w">you’ll</span> <span class="w">never</span> <span class="w">go</span> <span class="w">back.</span></p>
+        <span class="take__under" data-under></span>
       </div>
-      <p class="line"><span class="line__text" data-line>make it vertical for tiktok</span><span class="caret"></span></p>
+      <p class="cmd"><span class="cmd__text" data-cmd></span><span class="caret"></span></p>
+      <div class="take__after">
+        <div class="take__meta"><span class="take__rule take__rule--short"></span><span class="take__time">0:28</span></div>
+        <p class="take__words">Okay, so, this is the trick my grandmother taught me. You salt the onions first, before the pan is even hot. And they go soft and sweet, instead of burnt. And honestly, you’ll never go back.</p>
+      </div>
     </div>
-    <p class="sr-only">A short demo plays here. Requests type themselves, and a video clip edits to match. “Make it vertical for TikTok” crops it tall. “Add captions” adds words. “Cut the long pause” removes a silence. “Warmer, like film” changes its colour. “Undo all” puts it back.</p>
+    <p class="sr-only">A short demo plays here. It shows the transcript of a one minute, twelve second cooking video. Typed requests edit it. “Cut the ums” removes the filler words. “Remove the long pauses” closes the silences. “Make it 30 seconds” drops the two weakest sentences. “Add captions” lights the words up as they are spoken. The video ends at 28 seconds: Okay, so, this is the trick my grandmother taught me. You salt the onions first, before the pan is even hot. And they go soft and sweet, instead of burnt. And honestly, you’ll never go back.</p>
     <button class="demo-toggle" type="button" data-demo-toggle hidden>Pause the demo</button>
   </div>
 </section>
@@ -34,13 +28,17 @@
 <section class="problem" data-moment="problem" aria-labelledby="problem-title">
   <h2 class="say" id="problem-title">You have something worth showing.</h2>
   <p class="say">Then the software asks you to become an editor first.</p>
-  <ul class="pile" role="list">
-    <li>Timelines.</li>
+  <ul class="pile" role="list" data-pile>
     <li>Keyframes.</li>
-    <li>Export settings.</li>
-    <li>Hours.</li>
+    <li>Bitrate.</li>
+    <li>Render queue.</li>
+    <li>Nested sequences.</li>
+    <li>LUTs.</li>
   </ul>
-  <p class="say">So most videos never get made.</p>
+  <div class="problem__after" data-fold>
+    <p class="say">So most videos never get made.</p>
+    <p class="cmd cmd--quiet" aria-hidden="true"><span class="cmd__text" data-cmd></span><span class="caret"></span></p>
+  </div>
 </section>
 
 <section class="turn" data-moment="turn" aria-labelledby="turn-title">
@@ -53,30 +51,24 @@
     <li class="beat beat--record" data-moment="record">
       <div class="beat__text">
         <h3 class="beat__verb">Record.</h3>
-        <p>Screen, camera, game and voice. Each stays on its own track, so you can change it later.</p>
+        <p>Screen, camera, game and voice, each on its own track, so every part stays editable.</p>
       </div>
-      <div class="beat__art" aria-hidden="true">
-        <div class="lanes">
-          <div class="lane lane--screen"><span>Screen</span></div>
-          <div class="lane lane--camera"><span>Camera</span></div>
-          <div class="lane lane--game"><span>Game</span></div>
-          <div class="lane lane--mic"><span>Mic</span></div>
-        </div>
-      </div>
+      <ul class="arms" role="list" aria-hidden="true">
+        <li class="arm">Screen.</li>
+        <li class="arm">Camera.</li>
+        <li class="arm">Game.</li>
+        <li class="arm">Voice.</li>
+      </ul>
     </li>
     <li class="beat beat--say" data-moment="say">
       <div class="beat__text">
         <h3 class="beat__verb">Say it.</h3>
-        <p>Type what you want, in your own words. You see every edit before it happens, and you can always undo it.</p>
+        <p>Ask in your own words. You see every edit before it happens, and you can always undo it.</p>
       </div>
-      <div class="beat__art" aria-hidden="true">
-        <div class="ask">
-          <p class="ask__line"><span class="ask__text" data-ask>cut the silences</span><span class="caret"></span></p>
-          <div class="ask__track">
-            <span class="ask__seg"></span><span class="ask__hush"></span><span class="ask__seg"></span><span class="ask__hush"></span><span class="ask__seg"></span>
-          </div>
-          <p class="ask__pills"><span class="pill pill--apply">Apply</span><span class="pill pill--undo">Undo</span></p>
-        </div>
+      <div class="ask" aria-hidden="true">
+        <p class="ask__line"><span data-ask>cut the silences</span><span class="caret"></span></p>
+        <p class="ask__preview" data-preview>Cuts 14 pauses. 0:41 shorter.</p>
+        <p class="ask__actions"><span class="ask__btn ask__btn--apply">Apply</span><span class="ask__btn ask__btn--undo">Undo</span></p>
       </div>
     </li>
     <li class="beat beat--post" data-moment="post">
@@ -84,19 +76,17 @@
         <h3 class="beat__verb">Post it.</h3>
         <p>Vertical, square and wide, all from one project. Ready for TikTok, Instagram and YouTube.</p>
       </div>
-      <div class="beat__art" aria-hidden="true">
-        <div class="shapes">
-          <figure class="shape shape--tall"><div class="shape__pic"></div><figcaption>Vertical</figcaption></figure>
-          <figure class="shape shape--square"><div class="shape__pic"></div><figcaption>Square</figcaption></figure>
-          <figure class="shape shape--wide"><div class="shape__pic"></div><figcaption>Wide</figcaption></figure>
-        </div>
+      <div class="frames" aria-hidden="true">
+        <figure class="fr fr--tall"><p class="fr__cap">Salt the onions first.</p><figcaption>9:16</figcaption></figure>
+        <figure class="fr fr--square"><p class="fr__cap">Salt the onions first.</p><figcaption>1:1</figcaption></figure>
+        <figure class="fr fr--wide"><p class="fr__cap">Salt the onions first.</p><figcaption>16:9</figcaption></figure>
       </div>
     </li>
   </ol>
 </section>
 
 <section class="promise" data-moment="promise" aria-labelledby="promise-title">
-  <h2 class="say promise__line" id="promise-title">Everything runs on your computer. Even the AI.</h2>
+  <h2 class="say promise__line" id="promise-title">It runs on your computer, AI and all.</h2>
   <p class="say promise__line">Your videos never leave it.</p>
   <p class="say promise__line promise__line--instant">It opens instantly.</p>
   <p class="quiet promise__note">And it stays smooth, even on older Macs.</p>
