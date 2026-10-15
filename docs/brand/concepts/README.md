@@ -1,5 +1,7 @@
 # Dijmo logo concepts
 
+**Chosen: Caret** (2026-10-15). The final files, rules and app icons are in `../final/`.
+
 There are four directions for the new logo. Open `index.html` to compare them side by side: mark, wordmark, app icon, 16 px loupes, the Dock, Finder and a browser tab, in light and dark.
 
 Nothing here touches the live site. `assets/img/icon.svg` and the templates stay as they are until a direction is chosen.
