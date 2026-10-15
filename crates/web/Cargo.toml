@@ -1,0 +1,15 @@
+[package]
+name = "dijmo-web"
+description = "The Dijmo website: Axum routes, templates, assets and middleware."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "dijmo-web"
+path = "src/main.rs"
+
+[dependencies]
+dijmo-core.workspace = true
