@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block body %}
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero__copy">
+    <h1 class="hero__title" id="hero-title">Say what you want, and it’s done.</h1>
+    <p class="hero__lede">Dijmo is a video editor you talk to.</p>
+    <a class="hero__join" href="#join">Join the waitlist</a>
+  </div>
+
+  <div class="hero__demo">
+    <div class="demo" data-demo aria-hidden="true">
+      <div class="clip">
+        <div class="frame" data-frame>
+          {% include "partials/scene.html" %}
+          <div class="grade" data-grade><div class="grade__tint"></div></div>
+          <p class="cap" data-cap><span>we</span> <span>made</span> <span>it</span> <span>to</span> <span>the</span> <span>coast</span></p>
+          <div class="shutter shutter--l"></div>
+          <div class="shutter shutter--r"></div>
+        </div>
+        <div class="track" data-track>
+          <svg class="track__seg track__seg--a" viewBox="0 0 230 40" preserveAspectRatio="none"><path d="M2 20h2M8 14v12M14 9v22M20 15v10M26 6v28M32 12v16M38 17v6M44 10v20M50 4v32M56 13v14M62 18v4M68 11v18M74 7v26M80 14v12M86 9v22M92 16v8M98 12v16M104 5v30M110 13v14M116 17v6M122 8v24M128 12v16M134 15v10M140 6v28M146 11v18M152 16v8M158 9v22M164 13v14M170 7v26M176 15v10M182 10v20M188 14v12M194 18v4M200 12v16M206 8v24M212 15v10M218 17v6M224 19v2"/></svg>
+          <svg class="track__seg track__seg--gap" viewBox="0 0 70 40" preserveAspectRatio="none"><path d="M2 20h66"/></svg>
+          <svg class="track__seg track__seg--b" viewBox="0 0 200 40" preserveAspectRatio="none"><path d="M4 18v4M10 12v16M16 6v28M22 10v20M28 15v10M34 8v24M40 13v14M46 5v30M52 11v18M58 16v8M64 9v22M70 14v12M76 7v26M82 12v16M88 17v6M94 10v20M100 6v28M106 13v14M112 9v22M118 15v10M124 11v18M130 7v26M136 14v12M142 18v4M148 10v20M154 12v16M160 6v28M166 15v10M172 11v18M178 16v8M184 13v14M190 18v4M196 19v2"/></svg>
+        </div>
+        <div class="sweep" data-sweep></div>
+      </div>
+      <p class="line"><span class="line__text" data-line>make it vertical for tiktok</span><span class="caret"></span></p>
+    </div>
+    <p class="sr-only">A short demo plays here. Requests type themselves, and a video clip edits to match. “Make it vertical for TikTok” crops it tall. “Add captions” adds words. “Cut the long pause” removes a silence. “Warmer, like film” changes its colour. “Undo all” puts it back.</p>
+    <button class="demo-toggle" type="button" data-demo-toggle hidden>Pause the demo</button>
+  </div>
+</section>
+
+<section class="problem" data-moment aria-labelledby="problem-title">
+  <h2 class="say" id="problem-title">You have something worth showing.</h2>
+  <p class="say">Then the software asks you to become an editor first.</p>
+  <ul class="pile" role="list">
+    <li>Timelines.</li>
+    <li>Keyframes.</li>
+    <li>Export settings.</li>
+    <li>Hours.</li>
+  </ul>
+  <p class="say">So most videos never get made.</p>
+</section>
+
+<section class="turn" data-moment aria-labelledby="turn-title">
+  <h2 class="turn__q" id="turn-title" data-type>What if editing were as simple as saying it?</h2>
+</section>
+
+<section class="product" aria-labelledby="product-title">
+  <h2 class="say product__title" id="product-title">Meet Dijmo.</h2>
+  <ol class="beats" role="list">
+    <li class="beat beat--record" data-moment>
+      <div class="beat__text">
+        <h3 class="beat__verb">Record.</h3>
+        <p>Screen, camera, game and voice. Each stays on its own track, so you can change it later.</p>
+      </div>
+      <div class="beat__art" aria-hidden="true">
+        <div class="lanes">
+          <div class="lane lane--screen"><span>Screen</span></div>
+          <div class="lane lane--camera"><span>Camera</span></div>
+          <div class="lane lane--game"><span>Game</span></div>
+          <div class="lane lane--mic"><span>Mic</span></div>
+        </div>
+      </div>
+    </li>
+    <li class="beat beat--say" data-moment>
+      <div class="beat__text">
+        <h3 class="beat__verb">Say it.</h3>
+        <p>Type what you want, in your own words. You see every edit before it happens, and you can always undo it.</p>
+      </div>
+      <div class="beat__art" aria-hidden="true">
+        <div class="ask">
+          <p class="ask__line"><span class="ask__text" data-ask>cut the silences</span><span class="caret"></span></p>
+          <div class="ask__track">
+            <span class="ask__seg"></span><span class="ask__hush"></span><span class="ask__seg"></span><span class="ask__hush"></span><span class="ask__seg"></span>
+          </div>
+          <p class="ask__pills"><span class="pill pill--apply">Apply</span><span class="pill pill--undo">Undo</span></p>
+        </div>
+      </div>
+    </li>
+    <li class="beat beat--post" data-moment>
+      <div class="beat__text">
+        <h3 class="beat__verb">Post it.</h3>
+        <p>Vertical, square and wide, all from one project. Ready for TikTok, Instagram and YouTube.</p>
+      </div>
+      <div class="beat__art" aria-hidden="true">
+        <div class="shapes">
+          <figure class="shape shape--tall"><div class="shape__pic"></div><figcaption>Vertical</figcaption></figure>
+          <figure class="shape shape--square"><div class="shape__pic"></div><figcaption>Square</figcaption></figure>
+          <figure class="shape shape--wide"><div class="shape__pic"></div><figcaption>Wide</figcaption></figure>
+        </div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section class="promise" data-moment aria-labelledby="promise-title">
+  <h2 class="say promise__line" id="promise-title">Everything runs on your computer. Even the AI.</h2>
+  <p class="say promise__line">Your videos never leave it.</p>
+  <p class="say promise__line promise__line--instant">It opens instantly.</p>
+  <p class="quiet promise__note">And it stays smooth, even on older Macs.</p>
+</section>
+
+<section class="outcome" data-moment aria-labelledby="outcome-title">
+  <div class="rail" aria-hidden="true"><span class="rail__fill"></span></div>
+  <h2 class="say" id="outcome-title">Your ideas, finished.</h2>
+  <p class="say outcome__after">The videos you meant to make.</p>
+</section>
+
+<section class="join" id="join" aria-labelledby="join-title">
+  <h2 class="join__title" id="join-title">Be the first to try it.</h2>
+  <form class="entry{% if status == "sent" %} is-sent{% endif %}" method="post" action="/waitlist" data-join>
+    <label class="entry__label" for="email">Your email</label>
+    <div class="entry__row">
+      <div class="entry__field">
+        <input class="entry__input" id="email" type="email" name="email" value="{{ email }}" required autocomplete="email" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="you@example.com" aria-describedby="join-status join-note"{% if status == "invalid" %} aria-invalid="true"{% endif %} data-entry>
+        <span class="entry__mirror" aria-hidden="true" data-mirror></span>
+        <span class="entry__caret" aria-hidden="true" data-entry-caret></span>
+      </div>
+      <button class="entry__send" type="submit">
+        <span>Join the waitlist</span>
+        <svg class="entry__key" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M15.5 4.5v6.5h-10m3.5-3.5l-3.5 3.5 3.5 3.5"/></svg>
+      </button>
+    </div>
+    <div class="entry__rail" aria-hidden="true"><span class="entry__fill" data-entry-fill></span></div>
+    <input type="text" name="website" tabindex="-1" autocomplete="off" hidden>
+    <input type="hidden" name="t" value="{{ t }}">
+    <p class="entry__status" id="join-status" role="status" data-join-status>
+      {%- if status == "sent" -%}
+      Check your inbox. Open the link we sent to finish joining.
+      {%- else if status == "invalid" -%}
+      That email doesn’t look right. Check it and try again.
+      {%- else if status == "slow_down" -%}
+      Too many tries in a short time. Wait a few minutes, then try again.
+      {%- endif -%}
+    </p>
+    <p class="entry__note quiet" id="join-note">We’ll send one link to confirm. You can leave any time.</p>
+  </form>
+</section>
+{% endblock %}

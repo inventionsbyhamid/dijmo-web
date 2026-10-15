@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block body %}
+<section class="note-page">
+  {%- if outcome == "confirmed" || outcome == "already" %}
+  <div class="clip clip--small" data-celebrate aria-hidden="true">
+    <div class="frame frame--done">
+      {% include "partials/scene.html" %}
+      <p class="cap cap--on"><span>you’re</span> <span>in.</span></p>
+    </div>
+    <div class="sweep" data-sweep></div>
+  </div>
+  {%- endif %}
+  {%- if outcome == "confirmed" %}
+  <h1 class="note-page__title">You’re on the list.</h1>
+  <p class="note-page__body">Thank you. We’ll write when Dijmo is ready for you to try.</p>
+  <p class="note-page__next"><a class="text-link" href="{{ base_url }}/">Back to the home page</a></p>
+  {%- else if outcome == "already" %}
+  <h1 class="note-page__title">You’re already on the list.</h1>
+  <p class="note-page__body">Nothing more to do. We’ll write when Dijmo is ready for you to try.</p>
+  <p class="note-page__next"><a class="text-link" href="{{ base_url }}/">Back to the home page</a></p>
+  {%- else if outcome == "expired" %}
+  <h1 class="note-page__title">This link has expired.</h1>
+  <p class="note-page__body">Links last 72 hours. Join again and we’ll send you a new one.</p>
+  <p class="note-page__next"><a class="text-link" href="{{ base_url }}/#join">Join again</a></p>
+  {%- else %}
+  <h1 class="note-page__title">This link doesn’t work.</h1>
+  <p class="note-page__body">It may have been cut short. Copy the whole link from the email, or join again.</p>
+  <p class="note-page__next"><a class="text-link" href="{{ base_url }}/#join">Join again</a></p>
+  {%- endif %}
+</section>
+{% endblock %}
