@@ -372,7 +372,9 @@ ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
 /* Live: the paragraph is laid out invisibly; visible words are placed over it and glide. */
 .take.is-live .take__after { display: none; }
 .take.is-live .cmd { display: flex; }
-.take.is-live .take__words .w { visibility: hidden; }
+.take.is-live .take__words { visibility: hidden; }
+.take.is-live .wv,
+.take.is-live .take__under { visibility: visible; }
 .take.is-live .take__words .w.is-gone { display: none; }
 .take.is-live .take__words.is-measuring .w.is-gone { display: inline-block; }
 .wv {
