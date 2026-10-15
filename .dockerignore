@@ -1,0 +1,12 @@
+# Keep the build context small, and never send secrets to the builder.
+.git
+target
+.env
+.env.*
+!.env.example
+node_modules
+.superpowers
+.DS_Store
+**/.DS_Store
+docs
+crates/web/tests/fixtures
