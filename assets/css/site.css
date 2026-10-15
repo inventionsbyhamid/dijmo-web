@@ -162,14 +162,12 @@ ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
 }
 
 .mark {
-  font-size: 1.375rem;
-  font-weight: 700;
-  letter-spacing: -.045em;
+  display: block;
   color: var(--ink);
   text-decoration: none;
-  line-height: 1;
   padding: 6px 0;
 }
+.mark__logo { display: block; width: auto; height: 24px; }
 
 .sound {
   display: inline-flex;
