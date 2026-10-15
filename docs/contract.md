@@ -22,15 +22,19 @@ The server builder defines one Rust struct per page with these exact field names
 
 | Template | Extra fields |
 |---|---|
-| `index.html` | `status: String`: `""`, `"sent"`, `"invalid"` or `"slow_down"` (the outcome of a no-JS form post); `email: String` (re-filled on `invalid`); `t: String` (the render time in ms, for the form's timing field) |
-| `confirm.html` | `outcome: String`: `"confirmed"`, `"already"`, `"expired"` or `"invalid"` |
-| `leave.html` | `outcome: String`: `"confirm"`, `"left"` or `"invalid"`; `token: String` (the leave token on `"confirm"`, otherwise `""`) |
+| `index.html` | (none; changed 2026-10-16: the waitlist form and its `status`, `email` and `t` fields are gone) |
+| `confirm.html` | `outcome: String`: `"confirmed"`, `"already"`, `"expired"` or `"invalid"` (not routed while the waitlist is off) |
+| `leave.html` | `outcome: String`: `"confirm"`, `"left"` or `"invalid"`; `token: String` (not routed while the waitlist is off) |
 | `privacy.html` | (none) |
 | `error.html` | `code: u16`, `heading: String`, `body: String` |
 
 **Escaping:** Askama escapes HTML by default; leave it on. No `|safe` on any field that carries user data.
 
-## The waitlist form
+**Blocks:** `base.html` also has a `ship` block holding the footer's "Coming to Mac first, then Windows and Linux." `index.html` empties it, because its own close says the same.
+
+## The waitlist form (off since 2026-10-16)
+The page has no form and the server routes none of the waitlist. The record below stays until Sign in with Google replaces it.
+
 **The HTML form (works with no JavaScript):**
 ```html
 <form method="post" action="/waitlist">
@@ -64,8 +68,7 @@ So the page builder may use **no inline `<script>` and no inline `style=""` attr
 
 ## Routes
 - `GET /`, `GET /privacy`
-- `POST /waitlist`
-- `GET /waitlist/confirm?token=`
+- **Off since 2026-10-16** (not routed; they answer 404): `POST /waitlist`, `GET /waitlist/confirm?token=`, and leaving, recorded here as it was:
 - **Leaving** (changed 2026-10-15 so that mail scanners, which open every link in an email, never unsubscribe anyone):
   - `GET /waitlist/leave?token=` deletes nothing. It renders `leave.html` with `outcome: "confirm"` and the `token` (a valid link), or `outcome: "invalid"`.
   - On `"confirm"`, the page shows a "Leave the waitlist" button: `<form method="post" action="/waitlist/leave"><input type="hidden" name="token" value="{{ token }}">…</form>`.

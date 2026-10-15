@@ -1,6 +1,12 @@
 # dijmo-web: design spec (v1, 2026-10-15)
 
-The website for Dijmo. Today it is a coming-soon page with a waitlist. Later the same server handles licences, purchases, accounts, desktop-app sign-in, updates and downloads, and, after the editor's M9, the plugin store.
+The website for Dijmo. Today it is a coming-soon page. Later the same server handles licences, purchases, accounts, desktop-app sign-in, updates and downloads, and, after the editor's M9, the plugin store.
+
+> **Update, 2026-10-16: the waitlist is off.** The owner asked to "remove waitlist for now"; Sign in with Google replaces it next (its own spec section follows with that work).
+> - The page has no form. It closes on "Coming to Mac first, then Windows and Linux."
+> - `POST /waitlist`, `/waitlist/confirm` and `/waitlist/leave` are not routed, and the outbox worker does not start, so nothing is collected or sent.
+> - `/privacy` says plainly that the site collects nothing right now.
+> - The waitlist and outbox code stays in the tree, unused, until the accounts work removes it. The double opt-in section below is kept as a record of what was built.
 
 It is its own git repository, pushed to its own GitHub repo. Coolify builds the `Dockerfile` and deploys on every push to `main`.
 
@@ -55,7 +61,7 @@ dijmo-web/
 - Tables are named in plural snake_case, with `created_at` / `updated_at` as timestamptz.
 - Emails are stored lower-cased in a `citext` column.
 
-## The waitlist (double opt-in)
+## The waitlist (double opt-in; off since 2026-10-16)
 1. `POST /waitlist` takes an email, a honeypot field and a timestamp field. It works as a plain form post and also as a fetch from JavaScript (JSON in and out). Its answer is the same whether or not the address is already known, so nobody can probe whether an address is on the list.
 2. The server stores a pending signup with:
    - the email;
@@ -101,7 +107,7 @@ dijmo-web/
    - **Post it:** vertical, square and wide, from one project.
 5. **The promise.** It runs on your computer. Your videos never leave it. It opens instantly.
 6. **The outcome.** Your ideas, finished. The videos you meant to make.
-7. **The close.** The waitlist line: type your email; Enter lands. Then "Coming to Mac first, then Windows and Linux."
+7. **The close.** "Coming to Mac first, then Windows and Linux." (Until 2026-10-16 the close was the waitlist line: type your email; Enter lands.)
 
 **Audio (ASMR):**
 - Synthesised with Web Audio, or tiny samples (≤ 30 KB total): soft close-miked keystrokes, each one slightly varied, never a loop.
@@ -129,17 +135,16 @@ dijmo-web/
 **Light and dark:** the light "Porcelain" ground with a red caret is the default; a dark "Stage" ground (true black, white caret) follows `prefers-color-scheme`. Colour comes from the video frame. The visual direction can be refined as long as it stays minimal, classy and distinctive.
 
 **Pages:**
-- `/` (the story and waitlist);
-- `/waitlist/confirm` (a thank-you with a small celebratory edit);
-- `/waitlist/leave`;
-- `/privacy` (a plain-language privacy note for the waitlist);
+- `/` (the story);
+- `/privacy` (a plain-language privacy note; today it says the site collects nothing);
+- (off since 2026-10-16: `/waitlist/confirm` and `/waitlist/leave`);
 - 404 and 500 pages in the same voice.
 
 **SEO and social:** title, description, Open Graph and Twitter cards (with a generated OG image or a static one), `robots.txt`, `sitemap.xml`, a favicon from `docs/dijmo-icon.svg`.
 
 ## Testing (lean)
 Integration tests against a real Postgres (`DATABASE_URL` from the test environment; locally that's Homebrew Postgres 16):
-- the waitlist flow: signup → outbox → confirm → leave;
+- the waitlist flow: signup → outbox → confirm → leave (core tests only while the waitlist is off; the HTTP tests check its routes are gone);
 - duplicates;
 - an expired token;
 - rate limits;

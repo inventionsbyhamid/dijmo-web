@@ -121,20 +121,10 @@ ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
 }
 .skip:focus-visible { transform: none; }
 
-/* A checkbox switch whose label is clicked on Enter: iPhone's native haptic. Never visible. */
-.haptic {
-  position: fixed;
-  left: -40px; top: 0;
-  width: 1px; height: 1px;
-  overflow: hidden;
-  opacity: 0;
-  pointer-events: none;
-}
 
 .quiet { color: var(--quiet); }
 
 .text-link,
-.hero__join,
 .foot a {
   color: inherit;
   text-decoration: underline;
@@ -144,7 +134,6 @@ ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
   transition: text-decoration-color .2s;
 }
 .text-link:hover,
-.hero__join:hover,
 .foot a:hover { text-decoration-color: currentColor; }
 
 /* ---------- top bar ---------- */
@@ -275,15 +264,6 @@ ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
   color: var(--quiet);
   max-width: 28ch;
 }
-.hero__join {
-  font-size: var(--t-lede);
-  font-weight: 500;
-  color: var(--ink);
-  text-decoration-color: var(--caret);
-  text-decoration-thickness: 2px;
-}
-.hero__join:hover { text-decoration-color: var(--ink); }
-
 .hero__demo {
   grid-area: demo;
   position: relative;
@@ -675,164 +655,11 @@ main > section:not(.hero) {
 }
 .outcome__after { color: var(--quiet); }
 
-/* ---------- the close: the waitlist line ---------- */
+/* ---------- the close ---------- */
 
-.join {
-  padding-block: clamp(96px, 18vh, 220px) clamp(72px, 12vh, 140px);
-  scroll-margin-top: 24px;
-}
-.join__title {
-  font-size: var(--t-say);
-  font-weight: 500;
-  line-height: 1.04;
-  letter-spacing: -.038em;
-  max-width: 19ch;
-  margin-bottom: clamp(32px, 6vh, 56px);
-}
-
-.entry { max-width: 920px; }
-.entry__label {
-  display: block;
-  font-size: 1rem;
-  font-weight: 500;
-  color: var(--quiet);
-  margin-bottom: 4px;
-}
-.entry__row {
-  display: grid;
-  gap: 16px;
-  align-items: center;
-}
-@media (min-width: 720px) {
-  .entry__row { grid-template-columns: minmax(0, 1fr) auto; gap: 24px; }
-}
-.entry__field { position: relative; min-width: 0; }
-.entry__input {
-  display: block;
-  width: 100%;
-  padding: .12em 0 .16em;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  font-size: clamp(1.75rem, 1rem + 3.6vw, 3.25rem);
-  font-weight: 500;
-  letter-spacing: -.03em;
-  line-height: 1.2;
-  caret-color: var(--caret);
-  -webkit-appearance: none;
-  appearance: none;
-}
-.entry__input::placeholder { color: var(--quiet); opacity: 1; }
-.entry__input:focus { outline: none; }
-.entry__input:focus-visible { outline: none; }
-.entry__field:has(.entry__input:focus-visible) {
-  outline: 2px solid var(--caret);
-  outline-offset: 6px;
-  border-radius: 4px;
-}
-.entry__input[aria-invalid="true"] { text-decoration: underline wavy var(--quiet) 1px; text-underline-offset: .2em; }
-
-/* With JS, a thick caret replaces the native one. */
-.entry__mirror {
-  position: absolute;
-  left: 0; top: 0;
-  visibility: hidden;
-  white-space: pre;
-  font-size: clamp(1.75rem, 1rem + 3.6vw, 3.25rem);
-  font-weight: 500;
-  letter-spacing: -.03em;
-  line-height: 1.2;
-  pointer-events: none;
-}
-.entry__caret {
-  position: absolute;
-  left: 0;
-  top: .2em;
-  height: 1.05em;
-  width: 0;
-  font-size: clamp(1.75rem, 1rem + 3.6vw, 3.25rem);
-  pointer-events: none;
-  opacity: 0;
-}
-.entry__caret::after {
-  content: "";
-  position: absolute;
-  left: .02em;
-  top: 0;
-  bottom: 0;
-  width: max(3px, .07em);
-  border-radius: 1px;
-  background: var(--caret);
-}
-.has-caret .entry__input { caret-color: transparent; }
-.entry__caret.on { opacity: 1; }
-@media (prefers-reduced-motion: no-preference) {
-  .entry__caret.on.blink::after { animation: blink 1.06s steps(1) .5s infinite; }
-}
-
-.entry__send {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 52px;
-  padding: 0 22px 0 24px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--ink);
-  color: var(--on-ink);
-  font-size: 1.0625rem;
-  font-weight: 600;
-  letter-spacing: -.01em;
-  white-space: nowrap;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform .15s var(--ease-out), opacity .3s;
-}
-.entry__send:active { transform: scale(.97); }
-.entry__key {
-  width: 18px; height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: .75;
-}
-@media (max-width: 719px) {
-  .entry__send { width: 100%; }
-}
-
-.entry__rail {
-  position: relative;
-  height: 2px;
-  margin-top: 10px;
-  background: var(--line);
-  border-radius: 1px;
-}
-.entry__fill {
-  position: absolute;
-  inset: 0;
-  background: var(--ink);
-  border-radius: 1px;
-  transform: scaleX(0);
-  transform-origin: left center;
-}
-.entry__fill::after { content: none; }
-.entry.is-sending .entry__fill,
-.entry.is-sent .entry__fill { transform: none; transition: transform var(--edit) var(--ease-edit); }
-
-.entry__status {
-  min-height: 1.6em;
-  margin-top: 18px;
-  font-size: var(--t-lede);
-  font-weight: 500;
-  line-height: 1.45;
-}
-.entry__status:empty { min-height: 1.6em; }
-.entry__note { margin-top: 6px; font-size: 1rem; }
-.entry.is-sent .entry__send { opacity: .35; pointer-events: none; }
-.entry.is-sent .entry__caret { opacity: 0; }
+.close { padding-block: clamp(96px, 18vh, 220px) clamp(72px, 12vh, 140px); }
+.close .say { max-width: 22ch; }
+.close__after { color: var(--quiet); }
 
 /* ---------- footer ---------- */
 

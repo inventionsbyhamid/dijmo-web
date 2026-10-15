@@ -1,14 +1,8 @@
 //! The site over HTTP (in-process), against a real Postgres
 //! (`dijmo_web_test`, or `TEST_DATABASE_URL`).
-//!
-//! Tests run in parallel against one database: each uses its own addresses
-//! and its own app (so its own rate limits). Outbox workers from different
-//! tests may send each other's mail, so all of them share one in-memory
-//! sender and each test looks for mail to its own address.
 
 use std::net::{IpAddr, SocketAddr};
-use std::sync::{Arc, OnceLock};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::Arc;
 
 use axum::Router;
 use axum::body::Body;
@@ -19,11 +13,9 @@ use dijmo_core::config::BaseUrl;
 use dijmo_core::keys::SecretKey;
 use dijmo_core::waitlist::Policy;
 use dijmo_web::assets::Assets;
-use dijmo_web::email::{Email, MemorySender};
 use dijmo_web::ratelimit::Limits;
 use dijmo_web::security::CSP;
 use dijmo_web::state::{AppState, Inner, MIN_FILL_TIME};
-use dijmo_web::worker::Worker;
 use serde_json::{Value, json};
 use sqlx::PgPool;
 use tokio::sync::Notify;
@@ -32,17 +24,9 @@ use uuid::Uuid;
 
 const BASE: &str = "http://dijmo.test";
 
-fn sender() -> Arc<MemorySender> {
-    static SENDER: OnceLock<Arc<MemorySender>> = OnceLock::new();
-    SENDER
-        .get_or_init(|| Arc::new(MemorySender::default()))
-        .clone()
-}
-
 struct TestApp {
     app: Router,
     state: AppState,
-    worker: Worker,
 }
 
 async fn pool() -> PgPool {
@@ -73,37 +57,15 @@ async fn test_app() -> TestApp {
         min_fill_time: MIN_FILL_TIME,
         outbox_wake: Arc::new(Notify::new()),
     });
-    let worker = Worker {
-        pool,
-        sender: sender(),
-        base_url: state.base_url.clone(),
-        keys: state.keys.clone(),
-        policy: state.policy,
-        wake: state.outbox_wake.clone(),
-    };
     TestApp {
         app: dijmo_web::app(state.clone()),
         state,
-        worker,
     }
-}
-
-fn unique_email(tag: &str) -> String {
-    format!("{tag}-{}@web.test.example", Uuid::new_v4().simple())
 }
 
 fn random_ip() -> IpAddr {
     let b = Uuid::new_v4().into_bytes();
     IpAddr::from([203, b[0], b[1], b[2]])
-}
-
-/// The render time of a page loaded 5 s ago.
-fn t_ok() -> String {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis();
-    (now - 5_000).to_string()
 }
 
 struct Res {
@@ -146,548 +108,54 @@ impl TestApp {
         self.send(Request::get(uri).body(Body::empty()).unwrap(), random_ip())
             .await
     }
-
-    async fn post_form(&self, form: &[(&str, &str)], ip: IpAddr) -> Res {
-        let body: String = url::form_urlencoded::Serializer::new(String::new())
-            .extend_pairs(form)
-            .finish();
-        let req = Request::post("/waitlist")
-            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-            .header(header::ORIGIN, BASE)
-            .body(Body::from(body))
-            .unwrap();
-        self.send(req, ip).await
-    }
-
-    async fn post_json(&self, body: Value, ip: IpAddr) -> Res {
-        let req = Request::post("/waitlist")
-            .header(header::CONTENT_TYPE, "application/json")
-            .header(header::ACCEPT, "application/json")
-            .header(header::ORIGIN, BASE)
-            .body(Body::from(body.to_string()))
-            .unwrap();
-        self.send(req, ip).await
-    }
-
-    /// The leave page's form: POST /waitlist/leave with `token`.
-    async fn post_leave(&self, token: &str, origin: Option<&str>) -> Res {
-        let body: String = url::form_urlencoded::Serializer::new(String::new())
-            .append_pair("token", token)
-            .finish();
-        let mut req = Request::post("/waitlist/leave")
-            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded");
-        if let Some(o) = origin {
-            req = req.header(header::ORIGIN, o);
-        }
-        self.send(req.body(Body::from(body)).unwrap(), random_ip())
-            .await
-    }
-
-    async fn join(&self, email: &str) -> Res {
-        self.post_json(
-            json!({"email": email, "website": "", "t": t_ok()}),
-            random_ip(),
-        )
-        .await
-    }
-
-    /// Runs the outbox until mail to `to` shows up.
-    async fn mail_to(&self, to: &str, count: usize) -> Vec<Email> {
-        for _ in 0..100 {
-            self.worker.run_once().await.unwrap();
-            let got = sender().messages_to(to);
-            if got.len() >= count {
-                return got;
-            }
-            tokio::time::sleep(Duration::from_millis(20)).await;
-        }
-        panic!("no mail to {to}");
-    }
-
-    async fn signup_row(&self, email: &str) -> Option<(Uuid, bool, Value, Option<Vec<u8>>)> {
-        sqlx::query_as(
-            "SELECT id, confirmed_at IS NOT NULL, source, ip_hash FROM waitlist_signups WHERE email = $1::citext",
-        )
-        .bind(email)
-        .fetch_optional(&self.state.pool)
-        .await
-        .unwrap()
-    }
 }
 
-/// The path and query of the first link in `text` that starts with `prefix`.
-fn link(text: &str, prefix: &str) -> String {
-    let start = text
-        .find(prefix)
-        .unwrap_or_else(|| panic!("no {prefix} in {text}"));
-    let url: String = text[start..]
-        .chars()
-        .take_while(|c| !c.is_whitespace())
-        .collect();
-    url.strip_prefix(BASE).unwrap().to_owned()
-}
-
-// ------------------------------------------------------------------ flow
-
-#[tokio::test]
-async fn signup_outbox_confirm_leave() {
-    let t = test_app().await;
-    let email = unique_email("flow");
-
-    // The no-JS form: 303 to the index with status=sent.
-    let res = t
-        .post_form(
-            &[
-                ("email", &email.to_uppercase()),
-                ("website", ""),
-                ("t", &t_ok()),
-            ],
-            random_ip(),
-        )
-        .await;
-    assert_eq!(res.status, StatusCode::SEE_OTHER);
-    assert_eq!(res.header("location"), "/?status=sent#join");
-
-    let (id, confirmed, _, ip_hash) = t.signup_row(&email).await.expect("stored lower-cased");
-    assert!(!confirmed);
-    assert_eq!(
-        ip_hash.map(|h| h.len()),
-        Some(16),
-        "a coarse IP hash, not the IP"
-    );
-
-    // The outbox sends one confirmation with a confirm and a leave link.
-    let mail = t.mail_to(&email, 1).await;
-    assert_eq!(mail.len(), 1);
-    let m = &mail[0];
-    assert!(m.subject.contains("Dijmo"));
-    let confirm = link(&m.text, &format!("{BASE}/waitlist/confirm?token="));
-    let leave = link(&m.text, &format!("{BASE}/waitlist/leave?token="));
-    assert!(m.html.contains(&confirm) && m.html.contains(&leave));
-    assert_eq!(
-        m.unsubscribe_url.as_deref(),
-        Some(format!("{BASE}{leave}").as_str())
-    );
-    assert!(!m.html.contains("<img"), "no tracking pixels");
-
-    // The token itself is not stored, only its SHA-256.
-    let token = confirm.split("token=").nth(1).unwrap();
-    let stored: Vec<u8> =
-        sqlx::query_scalar("SELECT token_hash FROM waitlist_signups WHERE id = $1")
-            .bind(id)
-            .fetch_one(&t.state.pool)
-            .await
-            .unwrap();
-    assert_ne!(stored, token.as_bytes());
-    assert_eq!(stored, dijmo_core::keys::hash_token(token).to_vec());
-
-    let res = t.get(&confirm).await;
-    assert_eq!(res.status, StatusCode::OK);
-    assert!(res.body.contains("You’re on the list."), "{}", res.body);
-    assert_eq!(res.header("cache-control"), "no-store");
-    assert!(t.signup_row(&email).await.unwrap().1, "confirmed_at set");
-
-    // Idempotent.
-    let res = t.get(&confirm).await;
-    assert_eq!(res.status, StatusCode::OK);
-    assert!(res.body.contains("You’re already on the list."));
-
-    // The leave link only asks; the button's POST removes the signup.
-    let res = t.get(&leave).await;
-    assert_eq!(res.status, StatusCode::OK);
-    assert!(t.signup_row(&email).await.is_some(), "GET deletes nothing");
-    let token = leave.split("token=").nth(1).unwrap();
-    let res = t.post_leave(token, Some(BASE)).await;
-    assert_eq!(res.status, StatusCode::SEE_OTHER);
-    assert_eq!(res.header("location"), "/waitlist/leave?done=1");
-    assert!(t.signup_row(&email).await.is_none(), "removed");
-    let res = t.get("/waitlist/leave?done=1").await;
-    assert_eq!(res.status, StatusCode::OK);
-    assert!(res.body.contains("You’ve left the waitlist."));
-
-    // Leaving twice still lands on "left"; the old confirm link is dead.
-    let res = t.post_leave(token, Some(BASE)).await;
-    assert_eq!(res.header("location"), "/waitlist/leave?done=1");
-    let res = t.get(&confirm).await;
-    assert_eq!(res.status, StatusCode::BAD_REQUEST);
-    assert!(res.body.contains("This link doesn’t work."));
-}
-
-#[tokio::test]
-async fn duplicates_get_the_same_answer_and_one_email() {
-    let t = test_app().await;
-    let email = unique_email("dup");
-
-    let first = t.join(&email).await;
-    assert_eq!(first.status, StatusCode::OK);
-    assert_eq!(first.json(), json!({"ok": true}));
-    t.mail_to(&email, 1).await;
-
-    // Again, within the cooldown: same answer, no second email.
-    let second = t.join(&email).await;
-    assert_eq!((second.status, second.json()), (first.status, first.json()));
-    t.worker.run_once().await.unwrap();
-    assert_eq!(sender().messages_to(&email).len(), 1);
-
-    // Confirmed addresses get the same answer too, and no mail.
-    let confirm = link(
-        &sender().messages_to(&email)[0].text,
-        &format!("{BASE}/waitlist/confirm?token="),
-    );
-    assert_eq!(t.get(&confirm).await.status, StatusCode::OK);
-    sqlx::query("UPDATE waitlist_signups SET last_enqueued_at = now() - interval '1 hour' WHERE email = $1::citext")
-        .bind(&email)
-        .execute(&t.state.pool)
-        .await
-        .unwrap();
-    let third = t.join(&email).await;
-    assert_eq!((third.status, third.json()), (first.status, first.json()));
-    t.worker.run_once().await.unwrap();
-    assert_eq!(sender().messages_to(&email).len(), 1);
-
-    // An unknown address answers exactly the same.
-    let fresh = t.join(&unique_email("fresh")).await;
-    assert_eq!((fresh.status, fresh.body), (first.status, first.body));
-}
-
-#[tokio::test]
-async fn resend_after_cooldown_replaces_the_link() {
-    let t = test_app().await;
-    let email = unique_email("resend");
-    t.join(&email).await;
-    let first = t.mail_to(&email, 1).await;
-    sqlx::query("UPDATE waitlist_signups SET last_enqueued_at = now() - interval '11 minutes' WHERE email = $1::citext")
-        .bind(&email)
-        .execute(&t.state.pool)
-        .await
-        .unwrap();
-    t.join(&email).await;
-    let both = t.mail_to(&email, 2).await;
-    let old = link(&first[0].text, &format!("{BASE}/waitlist/confirm?token="));
-    let new = link(&both[1].text, &format!("{BASE}/waitlist/confirm?token="));
-    assert_ne!(old, new);
-    assert_eq!(t.get(&old).await.status, StatusCode::BAD_REQUEST);
-    assert_eq!(t.get(&new).await.status, StatusCode::OK);
-}
-
-#[tokio::test]
-async fn expired_token() {
-    let t = test_app().await;
-    let email = unique_email("expired");
-    t.join(&email).await;
-    let mail = t.mail_to(&email, 1).await;
-    let confirm = link(&mail[0].text, &format!("{BASE}/waitlist/confirm?token="));
-    sqlx::query("UPDATE waitlist_signups SET token_created_at = now() - interval '73 hours' WHERE email = $1::citext")
-        .bind(&email)
-        .execute(&t.state.pool)
-        .await
-        .unwrap();
-    let res = t.get(&confirm).await;
-    assert_eq!(res.status, StatusCode::GONE);
-    assert!(res.body.contains("This link has expired."));
-    assert!(!t.signup_row(&email).await.unwrap().1, "still unconfirmed");
-}
-
-#[tokio::test]
-async fn bad_tokens() {
-    let t = test_app().await;
-    for uri in [
-        "/waitlist/confirm",
-        "/waitlist/confirm?token=",
-        "/waitlist/confirm?token=nope",
-        "/waitlist/confirm?token=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-    ] {
-        let res = t.get(uri).await;
-        assert_eq!(res.status, StatusCode::BAD_REQUEST, "{uri}");
-        assert!(res.body.contains("This link doesn’t work."));
-    }
-    for uri in ["/waitlist/leave", "/waitlist/leave?token=forged"] {
-        let res = t.get(uri).await;
-        assert_eq!(res.status, StatusCode::BAD_REQUEST, "{uri}");
-        assert!(res.body.contains("This link doesn’t work."));
-    }
-}
-
-#[tokio::test]
-async fn leave_asks_first_and_only_the_post_deletes() {
-    let t = test_app().await;
-    let email = unique_email("leave");
-    t.join(&email).await;
-    let mail = t.mail_to(&email, 1).await;
-    let leave = link(&mail[0].text, &format!("{BASE}/waitlist/leave?token="));
-    let token = leave.split("token=").nth(1).unwrap().to_owned();
-
-    // A scanner opening the link (any number of times) deletes nothing; the
-    // page asks, with a form that posts the token back.
-    for _ in 0..3 {
-        let res = t.get(&leave).await;
-        assert_eq!(res.status, StatusCode::OK);
-        assert_eq!(res.header("cache-control"), "no-store");
-        assert!(res.body.contains(r#"action="/waitlist/leave""#));
-        assert!(
-            res.body
-                .contains(&format!(r#"name="token" value="{token}""#)),
-            "the confirm page carries the token"
-        );
-    }
-    assert!(t.signup_row(&email).await.is_some());
-
-    // The page's form posts the token; it must come from our origin.
-    let res = t.post_leave(&token, Some("https://evil.example")).await;
-    assert_eq!(res.status, StatusCode::FORBIDDEN);
-    assert!(t.signup_row(&email).await.is_some());
-    let res = t.post_leave(&token, None).await;
-    assert_eq!(res.status, StatusCode::FORBIDDEN);
-    assert!(t.signup_row(&email).await.is_some());
-
-    let res = t.post_leave(&token, Some(BASE)).await;
-    assert_eq!(res.status, StatusCode::SEE_OTHER);
-    assert_eq!(res.header("location"), "/waitlist/leave?done=1");
-    assert!(t.signup_row(&email).await.is_none());
-}
-
-#[tokio::test]
-async fn leave_with_a_bad_token_on_either_path() {
-    let t = test_app().await;
-    for bad in ["", "forged", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"] {
-        let res = t.get(&format!("/waitlist/leave?token={bad}")).await;
-        assert_eq!(res.status, StatusCode::BAD_REQUEST, "GET {bad:?}");
-        assert!(res.body.contains("This link doesn’t work."));
-
-        let res = t.post_leave(bad, Some(BASE)).await;
-        assert_eq!(res.status, StatusCode::BAD_REQUEST, "form POST {bad:?}");
-        assert!(res.body.contains("This link doesn’t work."));
-
-        let req = Request::post(format!("/waitlist/leave?token={bad}").as_str())
-            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-            .body(Body::from("List-Unsubscribe=One-Click"))
-            .unwrap();
-        let res = t.send(req, random_ip()).await;
-        assert_eq!(res.status, StatusCode::BAD_REQUEST, "one-click {bad:?}");
-    }
-}
-
-#[tokio::test]
-async fn one_click_unsubscribe_needs_no_origin() {
-    let t = test_app().await;
-    let email = unique_email("oneclick");
-    t.join(&email).await;
-    let mail = t.mail_to(&email, 1).await;
-    let leave = link(&mail[0].text, &format!("{BASE}/waitlist/leave?token="));
-    assert_eq!(
-        mail[0].unsubscribe_url.as_deref(),
-        Some(format!("{BASE}{leave}").as_str()),
-        "List-Unsubscribe points at the same URL"
-    );
-    let req = Request::post(leave.as_str())
-        .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-        .body(Body::from("List-Unsubscribe=One-Click"))
-        .unwrap();
-    let res = t.send(req, random_ip()).await;
-    assert_eq!(res.status, StatusCode::OK);
-    assert!(res.body.contains("You’ve left the waitlist."));
-    assert!(t.signup_row(&email).await.is_none());
-}
-
-#[tokio::test]
-async fn invalid_email() {
-    let t = test_app().await;
-    let res = t
-        .post_json(
-            json!({"email": "not-an-email", "website": "", "t": t_ok()}),
-            random_ip(),
-        )
-        .await;
-    assert_eq!(res.status, StatusCode::UNPROCESSABLE_ENTITY);
-    assert_eq!(res.json(), json!({"ok": false, "error": "invalid"}));
-    assert_eq!(
-        res.body, r#"{"ok":false,"error":"invalid"}"#,
-        "the contract's key order"
-    );
-
-    let res = t
-        .post_form(
-            &[("email", "nope@"), ("website", ""), ("t", &t_ok())],
-            random_ip(),
-        )
-        .await;
-    assert_eq!(res.status, StatusCode::SEE_OTHER);
-    assert_eq!(
-        res.header("location"),
-        "/?status=invalid&email=nope%40#join"
-    );
-
-    // The index re-fills it, escaped.
-    let res = t
-        .get("/?status=invalid&email=%22%3E%3Cscript%3Ex%3C%2Fscript%3E")
-        .await;
-    assert_eq!(res.status, StatusCode::OK);
-    assert!(!res.body.contains("<script>x"), "user data is escaped");
-    assert!(res.body.contains("aria-invalid=\"true\""));
-
-    // Malformed JSON is invalid too.
-    let req = Request::post("/waitlist")
-        .header(header::CONTENT_TYPE, "application/json")
-        .header(header::ORIGIN, BASE)
-        .body(Body::from("{nope"))
-        .unwrap();
-    assert_eq!(
-        t.send(req, random_ip()).await.status,
-        StatusCode::UNPROCESSABLE_ENTITY
-    );
-}
-
-#[tokio::test]
-async fn honeypot_and_timing_are_silent() {
-    let t = test_app().await;
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis()
-        .to_string();
-    let honey = unique_email("honey");
-    let fast = unique_email("fast");
-    let untimed = unique_email("untimed");
-
-    let res = t
-        .post_json(
-            json!({"email": honey, "website": "https://spam.example", "t": t_ok()}),
-            random_ip(),
-        )
-        .await;
-    assert_eq!(
-        (res.status, res.json()),
-        (StatusCode::OK, json!({"ok": true}))
-    );
-
-    let res = t
-        .post_json(json!({"email": fast, "website": "", "t": now}), random_ip())
-        .await;
-    assert_eq!(
-        (res.status, res.json()),
-        (StatusCode::OK, json!({"ok": true}))
-    );
-
-    let res = t
-        .post_form(&[("email", &untimed), ("website", "")], random_ip())
-        .await;
-    assert_eq!(res.header("location"), "/?status=sent#join");
-
-    for e in [&honey, &fast, &untimed] {
-        assert!(t.signup_row(e).await.is_none(), "{e} was not stored");
-    }
-}
-
-#[tokio::test]
-async fn rate_limit_per_ip() {
-    let t = test_app().await;
-    let ip = random_ip();
-    for i in 0..8 {
-        let res = t
-            .post_json(
-                json!({"email": unique_email("ip"), "website": "", "t": t_ok()}),
-                ip,
-            )
-            .await;
-        assert_eq!(res.status, StatusCode::OK, "request {i}");
-    }
-    let res = t
-        .post_json(
-            json!({"email": unique_email("ip"), "website": "", "t": t_ok()}),
-            ip,
-        )
-        .await;
-    assert_eq!(res.status, StatusCode::TOO_MANY_REQUESTS);
-    assert_eq!(res.json(), json!({"ok": false, "error": "slow_down"}));
-
-    let res = t
-        .post_form(
-            &[
-                ("email", &unique_email("ip")),
-                ("website", ""),
-                ("t", &t_ok()),
-            ],
-            ip,
-        )
-        .await;
-    assert_eq!(res.status, StatusCode::SEE_OTHER);
-    assert_eq!(res.header("location"), "/?status=slow_down#join");
-
-    // Another address is unaffected.
-    assert_eq!(t.join(&unique_email("ip")).await.status, StatusCode::OK);
-}
-
-#[tokio::test]
-async fn rate_limit_per_email() {
-    let t = test_app().await;
-    let email = unique_email("limit");
-    for _ in 0..3 {
-        assert_eq!(t.join(&email).await.status, StatusCode::OK);
-    }
-    let res = t.join(&email).await;
-    assert_eq!(res.status, StatusCode::TOO_MANY_REQUESTS);
-    // Case does not get around it.
-    assert_eq!(
-        t.join(&email.to_uppercase()).await.status,
-        StatusCode::TOO_MANY_REQUESTS
-    );
-}
-
-#[tokio::test]
-async fn cross_origin_posts_are_refused() {
-    let t = test_app().await;
-    let body = json!({"email": unique_email("cors"), "website": "", "t": t_ok()}).to_string();
-
-    let no_origin = Request::post("/waitlist")
-        .header(header::CONTENT_TYPE, "application/json")
-        .header(header::ACCEPT, "application/json")
-        .body(Body::from(body.clone()))
-        .unwrap();
-    let res = t.send(no_origin, random_ip()).await;
-    assert_eq!(res.status, StatusCode::FORBIDDEN);
-    assert_eq!(res.json(), json!({"ok": false, "error": "forbidden"}));
-
-    let evil = Request::post("/waitlist")
-        .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-        .header(header::ORIGIN, "https://evil.example")
-        .body(Body::from("email=a%40b.example&t=1"))
-        .unwrap();
-    let res = t.send(evil, random_ip()).await;
-    assert_eq!(res.status, StatusCode::FORBIDDEN);
-    assert!(res.header("content-type").starts_with("text/html"));
-
-    // A same-origin Referer is enough, and its UTM parameters are kept.
-    let email = unique_email("utm");
-    let by_referer = Request::post("/waitlist")
-        .header(header::CONTENT_TYPE, "application/json")
-        .header(header::ACCEPT, "application/json")
-        .header(
-            header::REFERER,
-            format!("{BASE}/?utm_source=newsletter&utm_campaign=launch&x=1"),
-        )
-        .body(Body::from(
-            json!({"email": email, "website": "", "t": t_ok()}).to_string(),
-        ))
-        .unwrap();
-    assert_eq!(t.send(by_referer, random_ip()).await.status, StatusCode::OK);
-    let (_, _, source, _) = t.signup_row(&email).await.unwrap();
-    assert_eq!(
-        source,
-        json!({"utm_source": "newsletter", "utm_campaign": "launch"})
-    );
-}
+// ------------------------------------------------------------------ the waitlist is off
 
 #[tokio::test]
 async fn body_limit() {
     let t = test_app().await;
-    let big = format!("email={}&t=1", "a".repeat(20 * 1024));
-    let req = Request::post("/waitlist")
+    let big = "a".repeat(20 * 1024);
+    let req = Request::post("/")
         .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+        .header(header::CONTENT_LENGTH, big.len())
         .header(header::ORIGIN, BASE)
         .body(Body::from(big))
         .unwrap();
     let res = t.send(req, random_ip()).await;
     assert_eq!(res.status, StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+/// The waitlist is off: none of its routes answer, so nothing can post to them.
+#[tokio::test]
+async fn waitlist_routes_are_gone() {
+    let t = test_app().await;
+    for (method, uri) in [
+        (Method::POST, "/waitlist"),
+        (Method::GET, "/waitlist"),
+        (
+            Method::GET,
+            "/waitlist/confirm?token=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        ),
+        (Method::GET, "/waitlist/leave?token=x"),
+        (Method::POST, "/waitlist/leave?token=x"),
+    ] {
+        let req = Request::builder()
+            .method(method.clone())
+            .uri(uri)
+            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .header(header::ORIGIN, BASE)
+            .body(Body::from("email=a%40b.example&List-Unsubscribe=One-Click"))
+            .unwrap();
+        let res = t.send(req, random_ip()).await;
+        assert_eq!(res.status, StatusCode::NOT_FOUND, "{method} {uri}");
+    }
+    let res = t.get("/").await;
+    assert!(
+        !res.body.contains("/waitlist"),
+        "the page links nowhere near it"
+    );
+    assert!(!res.body.contains("<form"), "no form on the page");
 }
 
 // ------------------------------------------------------------------ headers, pages, assets
@@ -731,8 +199,6 @@ async fn security_headers_everywhere() {
         let res = t.get(uri).await;
         assert_security_headers(&res, uri);
     }
-    let res = t.join(&unique_email("hdr")).await;
-    assert_security_headers(&res, "POST /waitlist");
 }
 
 /// Rendered pages must obey the CSP: no inline scripts, styles or handlers.
@@ -764,14 +230,7 @@ async fn every_page_renders() {
 
     for (uri, status) in [
         ("/", StatusCode::OK),
-        ("/?status=sent", StatusCode::OK),
-        ("/?status=invalid&email=x", StatusCode::OK),
-        ("/?status=slow_down", StatusCode::OK),
-        ("/?status=bogus", StatusCode::OK),
         ("/privacy", StatusCode::OK),
-        ("/waitlist/confirm?token=x", StatusCode::BAD_REQUEST),
-        ("/waitlist/leave?token=x", StatusCode::BAD_REQUEST),
-        ("/waitlist/leave?done=1", StatusCode::OK),
         ("/does-not-exist", StatusCode::NOT_FOUND),
     ] {
         let res = t.get(uri).await;
@@ -792,33 +251,27 @@ async fn every_page_renders() {
         assert_csp_clean(&res.body, uri);
     }
 
-    // The index carries the form fields and a fresh render time.
+    // The index closes on where Dijmo is coming, and says it only once.
     let res = t.get("/").await;
-    assert!(res.body.contains(r#"action="/waitlist""#));
-    assert!(res.body.contains(r#"name="website""#));
     assert!(
         res.body
             .contains(&format!(r#"<link rel="canonical" href="{BASE}/">"#))
     );
-    let t_field = res.body.split(r#"name="t" value=""#).nth(1).unwrap();
-    let rendered: u128 = t_field[..t_field.find('"').unwrap()].parse().unwrap();
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis();
-    assert!(now.abs_diff(rendered) < 10_000);
     assert_eq!(res.header("cache-control"), "no-cache");
+    assert!(res.body.contains(
+        r#"Coming to Mac first, <span class="close__after">then Windows and Linux.</span>"#
+    ));
     assert!(
-        t.get("/?status=sent")
-            .await
-            .body
-            .contains("Check your inbox.")
+        !res.body.contains("foot__ship"),
+        "the footer doesn't repeat it"
     );
+    let privacy = t.get("/privacy").await;
+    assert!(privacy.body.contains("foot__ship"), "other pages keep it");
     assert!(
-        t.get("/?status=slow_down")
+        t.get("/privacy")
             .await
             .body
-            .contains("Too many tries")
+            .contains("this site collects nothing about you")
     );
 
     // Every outcome and every error code renders through the real templates.
@@ -870,11 +323,6 @@ async fn errors_render_the_error_page_or_json() {
     let res = t.send(req, random_ip()).await;
     assert_eq!(res.status, StatusCode::METHOD_NOT_ALLOWED);
     assert!(res.header("content-type").starts_with("text/html"));
-
-    // GET /waitlist sends people to the form.
-    let res = t.get("/waitlist").await;
-    assert_eq!(res.status, StatusCode::SEE_OTHER);
-    assert_eq!(res.header("location"), "/#join");
 }
 
 #[tokio::test]
@@ -944,7 +392,7 @@ async fn health_robots_sitemap() {
     assert_eq!(res.status, StatusCode::OK);
     assert!(res.header("content-type").starts_with("text/plain"));
     assert!(res.body.contains(&format!("Sitemap: {BASE}/sitemap.xml")));
-    assert!(res.body.contains("Disallow: /waitlist/"));
+    assert!(!res.body.contains("/waitlist"));
 
     let res = t.get("/sitemap.xml").await;
     assert!(res.header("content-type").starts_with("application/xml"));

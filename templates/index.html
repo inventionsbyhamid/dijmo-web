@@ -1,10 +1,10 @@
 {% extends "base.html" %}
+{% block ship %}{% endblock %}
 {% block body %}
 <section class="hero" aria-labelledby="hero-title">
   <h1 class="hero__title" id="hero-title"><span class="hero__phrase">Say what you want,</span> and it’s done.</h1>
   <div class="hero__side">
     <p class="hero__lede">Dijmo is a video editor you talk to. Change the words, and the video follows.</p>
-    <a class="hero__join" href="#join">Join the waitlist</a>
   </div>
 
   <div class="hero__demo">
@@ -98,34 +98,7 @@
   <p class="say outcome__after">The videos you meant to make.</p>
 </section>
 
-<section class="join" id="join" aria-labelledby="join-title">
-  <h2 class="join__title" id="join-title">Be the first to try it.</h2>
-  <form class="entry" method="post" action="/waitlist" data-join>
-    <label class="entry__label" for="email">Your email</label>
-    <div class="entry__row">
-      <div class="entry__field">
-        <input class="entry__input" id="email" type="email" name="email" value="{{ email }}" required autocomplete="email" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="you@example.com" aria-describedby="join-status join-note"{% if status == "invalid" %} aria-invalid="true"{% endif %} data-entry>
-        <span class="entry__mirror" aria-hidden="true" data-mirror></span>
-        <span class="entry__caret" aria-hidden="true" data-entry-caret></span>
-      </div>
-      <button class="entry__send" type="submit">
-        <span>Join the waitlist</span>
-        <svg class="entry__key" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M15.5 4.5v6.5h-10m3.5-3.5l-3.5 3.5 3.5 3.5"/></svg>
-      </button>
-    </div>
-    <div class="entry__rail" aria-hidden="true"><span class="entry__fill" data-entry-fill></span></div>
-    <input type="text" name="website" tabindex="-1" autocomplete="off" hidden>
-    <input type="hidden" name="t" value="{{ t }}">
-    <p class="entry__status" id="join-status" role="status" data-join-status>
-      {%- if status == "sent" -%}
-      Check your inbox. Open the link we sent to finish joining.
-      {%- else if status == "invalid" -%}
-      That email doesn’t look right. Check it and try again.
-      {%- else if status == "slow_down" -%}
-      Too many tries in a short time. Wait a few minutes, then try again.
-      {%- endif -%}
-    </p>
-    <p class="entry__note quiet" id="join-note">We’ll send one link to confirm. You can leave any time.</p>
-  </form>
+<section class="close" aria-labelledby="close-title">
+  <h2 class="say" id="close-title">Coming to Mac first, <span class="close__after">then Windows and Linux.</span></h2>
 </section>
 {% endblock %}

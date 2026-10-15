@@ -91,11 +91,7 @@ async fn page_weight_budget_and_asset_references() {
     let mut refs = asset_refs(&html);
     refs.extend(asset_refs(&css));
     refs.extend(asset_refs(&js));
-    for r in [
-        "/privacy",
-        "/waitlist/confirm?token=x",
-        "/waitlist/leave?token=x",
-    ] {
+    for r in ["/privacy", "/does-not-exist"] {
         let (_, page) = get(&app, r).await;
         refs.extend(asset_refs(&String::from_utf8(page).unwrap()));
     }

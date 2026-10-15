@@ -4,15 +4,11 @@
 use std::io::{IsTerminal, Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::process::ExitCode;
-use std::sync::Arc;
 use std::time::Duration;
 
 use dijmo_core::Config;
-use dijmo_core::config::EmailProvider;
 use dijmo_web::assets::Assets;
-use dijmo_web::email::{EmailSender, LogSender, ResendSender};
 use dijmo_web::state::AppState;
-use dijmo_web::worker::Worker;
 use tokio::sync::watch;
 use tracing_subscriber::EnvFilter;
 
@@ -94,12 +90,6 @@ async fn serve() -> Result<(), BoxError> {
     init_tracing();
     let config = Config::from_env()?;
 
-    if matches!(config.email_provider, EmailProvider::Log) && config.public_base_url.is_https() {
-        tracing::warn!(
-            "EMAIL_PROVIDER is `log` on an https site: confirmation emails are only logged, not sent. Set RESEND_API_KEY and EMAIL_FROM."
-        );
-    }
-
     let pool = connect_with_retry(&config.database_url).await?;
     dijmo_core::migrate(&pool).await?;
     tracing::info!("migrations applied");
@@ -107,26 +97,9 @@ async fn serve() -> Result<(), BoxError> {
     let assets = Assets::load(&config.assets_dir)?;
     tracing::info!(css = %assets.css.url, js = %assets.js.url, "assets hashed");
 
-    let sender: Arc<dyn EmailSender> = match &config.email_provider {
-        EmailProvider::Log => Arc::new(LogSender),
-        EmailProvider::Resend { api_key } => Arc::new(ResendSender::new(
-            api_key.clone(),
-            config.email_from.clone(),
-        )),
-    };
-    tracing::info!(provider = ?config.email_provider, "email sender ready");
-
+    // The waitlist is off for now, so no email is sent and the outbox worker
+    // is not started. The sender and worker code stay for the launch email.
     let state = AppState::from_config(&config, pool.clone(), assets);
-    let worker = Worker {
-        pool: pool.clone(),
-        sender,
-        base_url: state.base_url.clone(),
-        keys: state.keys.clone(),
-        policy: state.policy,
-        wake: state.outbox_wake.clone(),
-    };
-    let (stop_tx, stop_rx) = watch::channel(false);
-    let worker_task = tokio::spawn(worker.run(stop_rx));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -153,13 +126,6 @@ async fn serve() -> Result<(), BoxError> {
         _ = deadline => tracing::warn!("in-flight requests did not finish in 20 s; stopping anyway"),
     }
 
-    let _ = stop_tx.send(true);
-    if tokio::time::timeout(Duration::from_secs(10), worker_task)
-        .await
-        .is_err()
-    {
-        tracing::warn!("outbox worker did not stop in 10 s");
-    }
     pool.close().await;
     tracing::info!("stopped");
     Ok(())

@@ -70,19 +70,12 @@ macro_rules! page {
 }
 
 page!(
-    /// `/`: the story and the waitlist.
-    IndexPage, "index.html" {
-        /// `""`, `"sent"`, `"invalid"` or `"slow_down"`.
-        status: String,
-        /// Re-filled on `invalid`.
-        email: String,
-        /// Render time in Unix ms, for the form's timing field.
-        t: String,
-    }
+    /// `/`: the story.
+    IndexPage, "index.html" {}
 );
 
 page!(
-    /// `/waitlist/confirm`.
+    /// `/waitlist/confirm` (not routed while the waitlist is off).
     ConfirmPage, "confirm.html" {
         /// `"confirmed"`, `"already"`, `"expired"` or `"invalid"`.
         outcome: String,
@@ -90,7 +83,7 @@ page!(
 );
 
 page!(
-    /// `/waitlist/leave`.
+    /// `/waitlist/leave` (not routed while the waitlist is off).
     LeavePage, "leave.html" {
         /// `"confirm"` (a valid link: ask first), `"left"` or `"invalid"`.
         outcome: String,
@@ -164,7 +157,7 @@ pub fn error_copy(status: StatusCode) -> (&'static str, &'static str, &'static s
         403 => (
             "Not allowed · Dijmo",
             "That isn’t allowed from here.",
-            "If you were joining the waitlist, use the form on the home page.",
+            "Go back to the home page and try again from there.",
         ),
         404 => (
             "Not found · Dijmo",

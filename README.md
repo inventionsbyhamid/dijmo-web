@@ -1,6 +1,6 @@
 # dijmo-web
 
-The website for **Dijmo**, a fast, offline video editor you talk to. Today it's a coming-soon page with a double opt-in waitlist. Later the same server will handle licences, purchases, accounts, desktop sign-in, updates, downloads and the plugin store.
+The website for **Dijmo**, a fast, offline video editor you talk to. Today it's a coming-soon page. The double opt-in waitlist is off (since 2026-10-16): no form, no waitlist routes, no email worker. Sign in with Google replaces it next. Later the same server will handle licences, purchases, accounts, desktop sign-in, updates, downloads and the plugin store.
 
 - **Server:** Rust, Axum 0.8, Tokio, tower-http. Pages are rendered on the server with Askama, and the templates are checked at compile time.
 - **Database:** Postgres 16 through sqlx. Migrations live in `migrations/` and run at startup.
@@ -40,7 +40,7 @@ cargo clippy --all-targets -- -D warnings
 cargo fmt --check
 ```
 - The tests use `TEST_DATABASE_URL`, which defaults to `postgres://localhost/dijmo_web_test`.
-- They cover the waitlist flow (signup → outbox → confirm → leave, where only the POST deletes), duplicates, expired and forged tokens, rate limits, the honeypot and timing check, the Origin check, the body cap and the security headers.
+- They cover the core waitlist code (still in the tree, unused), that the waitlist routes are gone, the body cap and the security headers.
 - They also check that every template renders and obeys the CSP, the page-weight budget, and that every `/assets/…` reference resolves.
 
 ## Configuration
@@ -90,7 +90,7 @@ The server reads the environment only. `.env` is for local development and is gi
    - Errors are logged with the recipient masked.
    - A bad key or an unverified domain is retried with backoff (for about 12 hours), so fixing the setting delivers the queued mail.
 
-## How the waitlist works
+## How the waitlist worked (off since 2026-10-16)
 - **`POST /waitlist`** takes `email`, the honeypot `website` and `t` (the render time), as a form or as JSON.
   - The form answers `303` to `/?status=sent|invalid|slow_down#join`.
   - JSON answers `200 {"ok":true}`, `422 {"ok":false,"error":"invalid"}` or `429 {"ok":false,"error":"slow_down"}`.
