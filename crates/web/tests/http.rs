@@ -417,6 +417,10 @@ async fn invalid_email() {
         .await;
     assert_eq!(res.status, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(res.json(), json!({"ok": false, "error": "invalid"}));
+    assert_eq!(
+        res.body, r#"{"ok":false,"error":"invalid"}"#,
+        "the contract's key order"
+    );
 
     let res = t
         .post_form(

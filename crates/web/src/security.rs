@@ -9,7 +9,6 @@ use axum::http::request::Parts;
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use serde_json::json;
 
 use crate::pages::error_page;
 use crate::state::AppState;
@@ -105,12 +104,19 @@ fn error_code(status: StatusCode) -> &'static str {
     }
 }
 
+/// The JSON error body, with keys in the contract's order.
+#[derive(serde::Serialize)]
+struct ApiError<'a> {
+    ok: bool,
+    error: &'a str,
+}
+
 /// `{"ok":false,"error":…}` with `status`.
 pub fn json_error(status: StatusCode, error: &str) -> Response {
     (
         status,
         [(header::CACHE_CONTROL, "no-store")],
-        axum::Json(json!({ "ok": false, "error": error })),
+        axum::Json(ApiError { ok: false, error }),
     )
         .into_response()
 }
