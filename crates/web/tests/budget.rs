@@ -105,8 +105,9 @@ async fn page_weight_budget_and_asset_references() {
     }
 
     // What a first visit loads: the HTML, CSS, JS, the fonts the CSS uses,
-    // and the favicon. Sounds load only when the visitor turns sound on;
-    // og.png and the touch icon are not fetched by the page.
+    // the favicon, and one sound file (the script prefetches the one the
+    // browser plays when idle; count the larger to be safe). og.png and the
+    // touch icon are not fetched by the page.
     let fonts: usize = refs
         .iter()
         .filter(|r| r.ends_with(".woff2"))
@@ -119,25 +120,27 @@ async fn page_weight_budget_and_asset_references() {
     let icon = std::fs::metadata(dir.join("img/icon.svg"))
         .map(|m| m.len() as usize)
         .unwrap_or(0);
-    let total = html.len() + css.len() + js.len() + fonts + icon;
-
-    let sounds: usize = std::fs::read_dir(dir.join("sounds"))
+    let sound_files: Vec<usize> = std::fs::read_dir(dir.join("sounds"))
         .map(|rd| {
             rd.filter_map(Result::ok)
                 .filter_map(|e| e.metadata().ok())
                 .filter(|m| m.is_file())
                 .map(|m| m.len() as usize)
-                .sum()
+                .collect()
         })
-        .unwrap_or(0);
+        .unwrap_or_default();
+    let sounds: usize = sound_files.iter().sum();
+    let one_sound = sound_files.iter().copied().max().unwrap_or(0);
+    let total = html.len() + css.len() + js.len() + fonts + icon + one_sound;
 
     eprintln!(
-        "page weight (uncompressed): html {} B, css {} B, js {} B, fonts {} B, icon {} B = {:.1} KB; sounds {:.1} KB",
+        "page weight (uncompressed): html {} B, css {} B, js {} B, fonts {} B, icon {} B, one sound {} B = {:.1} KB; all sounds {:.1} KB",
         html.len(),
         css.len(),
         js.len(),
         fonts,
         icon,
+        one_sound,
         total as f64 / KB as f64,
         sounds as f64 / KB as f64
     );
