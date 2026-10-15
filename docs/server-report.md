@@ -35,7 +35,7 @@ The Rust server for dijmo-web is built to `docs/spec.md` and `docs/contract.md`.
 - **Routes:** all of them. 404s, 405s, 413s, timeouts and panics render `error.html`, or JSON when the request wants JSON.
 
 **Additions (outside the contract, so the page needs nothing new):**
-- `POST /waitlist/leave?token=` for RFC 8058 one-click unsubscribe. Emails carry `List-Unsubscribe` and `List-Unsubscribe-Post`.
+- RFC 8058 one-click unsubscribe: a POST to `/waitlist/leave?token=` with `List-Unsubscribe=One-Click`. Emails carry `List-Unsubscribe` and `List-Unsubscribe-Post`.
 - `GET /waitlist` answers `303` to `/#join`.
 - A cross-origin POST gets `403`: the error page, or `{"ok":false,"error":"forbidden"}` for JSON.
 - Status codes on the outcome pages: confirm answers `200` for confirmed or already, `410` for expired, `400` for invalid. Leave answers `200` for left, `400` for invalid. The page renders in every case.
@@ -129,7 +129,8 @@ The server ran the release binary on :8080, with the Log sender and `dijmo_web_d
 - **Template check:** the live page matches the current `templates/` (page v2, `b55517c`), and the served asset hashes match the files on disk.
 
 ## Follow-ups and risks
-1. **Mail scanners can trigger leave links.** `GET /waitlist/leave` deletes the signup, as the contract says. Corporate link scanners (for example Microsoft Defender Safe Links) sometimes fetch every link in an email, which could silently unsubscribe someone.
+1. **Mail scanners and leave links: resolved (contract change, 2026-10-15).** `GET /waitlist/leave?token=` now deletes nothing and renders `outcome: "confirm"` with the `token`. The page's button POSTs the token, which deletes the signup and answers `303` to `/waitlist/leave?done=1` (`outcome: "left"`). One-click unsubscribe still deletes directly. Tests cover each path: GET deletes nothing, POST deletes, a bad token on either path, cross-origin POSTs are refused, and one-click works.
+   - The original note follows. `GET /waitlist/leave` used to delete the signup, as the contract said. Corporate link scanners (for example Microsoft Defender Safe Links) sometimes fetch every link in an email, which could silently unsubscribe someone.
    - Suggested contract change: GET shows a "Leave the waitlist?" button (`outcome: "ask"` plus a `token` field), and the POST does the deletion. The POST route already exists.
    - Confirm links have the same exposure, but the effect is milder: an auto-confirm.
 2. **Privacy copy.** The privacy page says "How long we keep it: Until you leave." The server also deletes *unconfirmed* signups after 30 days. The page builder may want to add one line about that.

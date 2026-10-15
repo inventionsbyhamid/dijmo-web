@@ -92,8 +92,10 @@ page!(
 page!(
     /// `/waitlist/leave`.
     LeavePage, "leave.html" {
-        /// `"left"` or `"invalid"`.
+        /// `"confirm"` (a valid link: ask first), `"left"` or `"invalid"`.
         outcome: String,
+        /// The leave token on `"confirm"`, for the form's `token` field; else `""`.
+        token: String,
     }
 );
 

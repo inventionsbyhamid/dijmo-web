@@ -45,7 +45,7 @@ pub fn router(state: AppState) -> Router<AppState> {
             post(join).get(|| async { Redirect::to("/#join") }),
         )
         .route("/waitlist/confirm", get(confirm))
-        .route("/waitlist/leave", get(leave).post(leave_one_click))
+        .route("/waitlist/leave", get(leave).post(leave_post))
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
         .route("/robots.txt", get(robots))
@@ -332,45 +332,93 @@ async fn confirm(State(state): State<AppState>, RawQuery(q): RawQuery) -> Respon
     )
 }
 
-async fn leave_with(state: &AppState, q: Option<&str>) -> Response {
-    let token = query_param(q, "token").unwrap_or_default();
-    let left = match state.keys.verify_leave_token(token.trim()) {
-        None => false,
-        Some(id) => match waitlist::leave(&state.pool, id).await {
-            Ok(_) => true,
-            Err(e) => {
-                tracing::error!(error = %e, "waitlist: leave failed");
-                return error_page(state, StatusCode::INTERNAL_SERVER_ERROR);
-            }
-        },
-    };
-    tracing::info!(left, "waitlist: leave");
-    let (outcome, title, status) = if left {
-        ("left", "You’ve left the waitlist · Dijmo", StatusCode::OK)
-    } else {
-        (
-            "invalid",
-            "This link doesn’t work · Dijmo",
-            StatusCode::BAD_REQUEST,
-        )
+/// Renders `leave.html` for `outcome` (`"confirm"`, `"left"` or `"invalid"`).
+fn leave_page(state: &AppState, outcome: &str, token: String) -> Response {
+    let (title, status) = match outcome {
+        "confirm" => ("Leave the waitlist? · Dijmo", StatusCode::OK),
+        "left" => ("You’ve left the waitlist · Dijmo", StatusCode::OK),
+        _ => ("This link doesn’t work · Dijmo", StatusCode::BAD_REQUEST),
     };
     let meta = Meta::new(state, "/waitlist/leave", title, SITE_DESCRIPTION);
     render(
-        &LeavePage::new(meta, outcome.to_owned()),
+        &LeavePage::new(meta, outcome.to_owned(), token),
         status,
         Caching::NoStore,
     )
 }
 
-async fn leave(State(state): State<AppState>, RawQuery(q): RawQuery) -> Response {
-    leave_with(&state, q.as_deref()).await
+/// Deletes the signup a valid leave token names. `Ok(false)` for a bad token;
+/// a valid token whose signup is already gone still counts as left.
+async fn leave_by_token(state: &AppState, token: &str) -> Result<bool, Response> {
+    let Some(id) = state.keys.verify_leave_token(token.trim()) else {
+        tracing::info!(left = false, "waitlist: leave");
+        return Ok(false);
+    };
+    match waitlist::leave(&state.pool, id).await {
+        Ok(_) => {
+            tracing::info!(left = true, "waitlist: leave");
+            Ok(true)
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "waitlist: leave failed");
+            Err(error_page(state, StatusCode::INTERNAL_SERVER_ERROR))
+        }
+    }
 }
 
-/// RFC 8058 one-click unsubscribe: mail providers POST to the
-/// `List-Unsubscribe` URL. The signed token is the authority, so there is no
-/// Origin check here.
-async fn leave_one_click(State(state): State<AppState>, RawQuery(q): RawQuery) -> Response {
-    leave_with(&state, q.as_deref()).await
+/// `GET /waitlist/leave?token=` deletes nothing: mail scanners open every
+/// link in an email. It asks, with a button that POSTs the token.
+/// `GET /waitlist/leave?done=1` is where that POST lands.
+async fn leave(State(state): State<AppState>, RawQuery(q): RawQuery) -> Response {
+    if query_param(q.as_deref(), "done").as_deref() == Some("1") {
+        return leave_page(&state, "left", String::new());
+    }
+    let token = query_param(q.as_deref(), "token").unwrap_or_default();
+    match state.keys.verify_leave_token(token.trim()) {
+        Some(_) => leave_page(&state, "confirm", token.trim().to_owned()),
+        None => leave_page(&state, "invalid", String::new()),
+    }
+}
+
+/// `POST /waitlist/leave` has two callers:
+/// - the page's button: form field `token`, same-origin, answered with
+///   `303` to `/waitlist/leave?done=1`;
+/// - RFC 8058 one-click unsubscribe: a mail provider POSTs
+///   `List-Unsubscribe=One-Click` to the `List-Unsubscribe` URL, with the token
+///   in the query and no Origin. The signed token is the authority; it gets
+///   `200` and the "left" page.
+async fn leave_post(
+    State(state): State<AppState>,
+    RawQuery(q): RawQuery,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    let form_token = url::form_urlencoded::parse(&body)
+        .find(|(k, _)| k == "token")
+        .map(|(_, v)| v.into_owned());
+
+    if let Some(token) = form_token {
+        if !same_origin(&headers, state.base_url.origin()) {
+            tracing::info!("waitlist: refused a cross-origin leave");
+            return error_page(&state, StatusCode::FORBIDDEN);
+        }
+        return match leave_by_token(&state, &token).await {
+            Ok(true) => (
+                [(header::CACHE_CONTROL, "no-store")],
+                Redirect::to("/waitlist/leave?done=1"),
+            )
+                .into_response(),
+            Ok(false) => leave_page(&state, "invalid", String::new()),
+            Err(res) => res,
+        };
+    }
+
+    let token = query_param(q.as_deref(), "token").unwrap_or_default();
+    match leave_by_token(&state, &token).await {
+        Ok(true) => leave_page(&state, "left", String::new()),
+        Ok(false) => leave_page(&state, "invalid", String::new()),
+        Err(res) => res,
+    }
 }
 
 // ---------------------------------------------------------------- ops & SEO

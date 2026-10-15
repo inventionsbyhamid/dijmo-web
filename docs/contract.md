@@ -24,7 +24,7 @@ The server builder defines one Rust struct per page with these exact field names
 |---|---|
 | `index.html` | `status: String`: `""`, `"sent"`, `"invalid"` or `"slow_down"` (the outcome of a no-JS form post); `email: String` (re-filled on `invalid`); `t: String` (the render time in ms, for the form's timing field) |
 | `confirm.html` | `outcome: String`: `"confirmed"`, `"already"`, `"expired"` or `"invalid"` |
-| `leave.html` | `outcome: String`: `"left"` or `"invalid"` |
+| `leave.html` | `outcome: String`: `"confirm"`, `"left"` or `"invalid"`; `token: String` (the leave token on `"confirm"`, otherwise `""`) |
 | `privacy.html` | (none) |
 | `error.html` | `code: u16`, `heading: String`, `body: String` |
 
@@ -65,7 +65,13 @@ So the page builder may use **no inline `<script>` and no inline `style=""` attr
 ## Routes
 - `GET /`, `GET /privacy`
 - `POST /waitlist`
-- `GET /waitlist/confirm?token=`, `GET /waitlist/leave?token=`
+- `GET /waitlist/confirm?token=`
+- **Leaving** (changed 2026-10-15 so that mail scanners, which open every link in an email, never unsubscribe anyone):
+  - `GET /waitlist/leave?token=` deletes nothing. It renders `leave.html` with `outcome: "confirm"` and the `token` (a valid link), or `outcome: "invalid"`.
+  - On `"confirm"`, the page shows a "Leave the waitlist" button: `<form method="post" action="/waitlist/leave"><input type="hidden" name="token" value="{{ token }}">…</form>`.
+  - `POST /waitlist/leave` with the form field `token` deletes the signup, then answers `303` to `/waitlist/leave?done=1`. A bad token renders `outcome: "invalid"` (400). The POST must come from the site's own origin.
+  - `GET /waitlist/leave?done=1` renders `outcome: "left"`.
+  - Mail clients' one-click unsubscribe (RFC 8058, `List-Unsubscribe-Post`) keeps working: they POST `List-Unsubscribe=One-Click` to `/waitlist/leave?token=…`, and the server deletes the signup and answers `200` with `outcome: "left"`.
 - `GET /healthz`, `GET /readyz`
 - `GET /robots.txt`, `GET /sitemap.xml`
 - `/assets/*`

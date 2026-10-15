@@ -40,7 +40,7 @@ cargo clippy --all-targets -- -D warnings
 cargo fmt --check
 ```
 - The tests use `TEST_DATABASE_URL`, which defaults to `postgres://localhost/dijmo_web_test`.
-- They cover the waitlist flow (signup → outbox → confirm → leave), duplicates, expired and forged tokens, rate limits, the honeypot and timing check, the Origin check, the body cap and the security headers.
+- They cover the waitlist flow (signup → outbox → confirm → leave, where only the POST deletes), duplicates, expired and forged tokens, rate limits, the honeypot and timing check, the Origin check, the body cap and the security headers.
 - They also check that every template renders and obeys the CSP, the page-weight budget, and that every `/assets/…` reference resolves.
 
 ## Configuration
@@ -99,7 +99,9 @@ The server reads the environment only. `.env` is for local development and is gi
 - **Rate limits** are kept in memory with a bounded map: 8 posts at once per IP (IPv6 /64), then 1 per minute; 3 per address, then 1 per 20 minutes. A confirmation email goes out at most once per 10 minutes per address, enforced in the database.
 - **Storage.** A signup stores the lower-cased email (`citext`), the UTM parameters from the page it came from, and a coarse HMAC of the IP (IPv4 /24, IPv6 /48). It never stores the IP itself.
 - **Confirmation tokens** are 32 random bytes in base64url. The worker mints one just before sending, and only its SHA-256 is stored. A token is valid for 72 hours, and confirming is idempotent.
-- **Leave links** (`/waitlist/leave?token=…`) are HMAC-signed signup ids, so every later email can carry one. Emails also carry `List-Unsubscribe` with one-click POST (RFC 8058).
+- **Leave links** (`/waitlist/leave?token=…`) are HMAC-signed signup ids, so every later email can carry one.
+  - Opening the link deletes nothing: mail scanners open every link. The page asks first, and its button POSTs the token, which deletes the signup and redirects to `/waitlist/leave?done=1`.
+  - Emails also carry `List-Unsubscribe` with one-click POST (RFC 8058), which deletes directly.
 - **Housekeeping.** Unconfirmed signups with no new request for 30 days are deleted. Sent outbox rows are kept for 30 days.
 
 Useful queries:

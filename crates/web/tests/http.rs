@@ -169,6 +169,20 @@ impl TestApp {
         self.send(req, ip).await
     }
 
+    /// The leave page's form: POST /waitlist/leave with `token`.
+    async fn post_leave(&self, token: &str, origin: Option<&str>) -> Res {
+        let body: String = url::form_urlencoded::Serializer::new(String::new())
+            .append_pair("token", token)
+            .finish();
+        let mut req = Request::post("/waitlist/leave")
+            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded");
+        if let Some(o) = origin {
+            req = req.header(header::ORIGIN, o);
+        }
+        self.send(req.body(Body::from(body)).unwrap(), random_ip())
+            .await
+    }
+
     async fn join(&self, email: &str) -> Res {
         self.post_json(
             json!({"email": email, "website": "", "t": t_ok()}),
@@ -278,18 +292,22 @@ async fn signup_outbox_confirm_leave() {
     assert_eq!(res.status, StatusCode::OK);
     assert!(res.body.contains("You’re already on the list."));
 
+    // The leave link only asks; the button's POST removes the signup.
     let res = t.get(&leave).await;
     assert_eq!(res.status, StatusCode::OK);
-    assert!(res.body.contains("You’ve left the waitlist."));
+    assert!(t.signup_row(&email).await.is_some(), "GET deletes nothing");
+    let token = leave.split("token=").nth(1).unwrap();
+    let res = t.post_leave(token, Some(BASE)).await;
+    assert_eq!(res.status, StatusCode::SEE_OTHER);
+    assert_eq!(res.header("location"), "/waitlist/leave?done=1");
     assert!(t.signup_row(&email).await.is_none(), "removed");
+    let res = t.get("/waitlist/leave?done=1").await;
+    assert_eq!(res.status, StatusCode::OK);
+    assert!(res.body.contains("You’ve left the waitlist."));
 
-    // Leaving twice still says you're off the list; the old confirm link is dead.
-    assert!(
-        t.get(&leave)
-            .await
-            .body
-            .contains("You’ve left the waitlist.")
-    );
+    // Leaving twice still lands on "left"; the old confirm link is dead.
+    let res = t.post_leave(token, Some(BASE)).await;
+    assert_eq!(res.header("location"), "/waitlist/leave?done=1");
     let res = t.get(&confirm).await;
     assert_eq!(res.status, StatusCode::BAD_REQUEST);
     assert!(res.body.contains("This link doesn’t work."));
@@ -391,18 +409,76 @@ async fn bad_tokens() {
 }
 
 #[tokio::test]
+async fn leave_asks_first_and_only_the_post_deletes() {
+    let t = test_app().await;
+    let email = unique_email("leave");
+    t.join(&email).await;
+    let mail = t.mail_to(&email, 1).await;
+    let leave = link(&mail[0].text, &format!("{BASE}/waitlist/leave?token="));
+    let token = leave.split("token=").nth(1).unwrap().to_owned();
+
+    // A scanner opening the link (any number of times) deletes nothing.
+    for _ in 0..3 {
+        let res = t.get(&leave).await;
+        assert_eq!(res.status, StatusCode::OK);
+        assert_eq!(res.header("cache-control"), "no-store");
+    }
+    assert!(t.signup_row(&email).await.is_some());
+
+    // The page's form posts the token; it must come from our origin.
+    let res = t.post_leave(&token, Some("https://evil.example")).await;
+    assert_eq!(res.status, StatusCode::FORBIDDEN);
+    assert!(t.signup_row(&email).await.is_some());
+    let res = t.post_leave(&token, None).await;
+    assert_eq!(res.status, StatusCode::FORBIDDEN);
+    assert!(t.signup_row(&email).await.is_some());
+
+    let res = t.post_leave(&token, Some(BASE)).await;
+    assert_eq!(res.status, StatusCode::SEE_OTHER);
+    assert_eq!(res.header("location"), "/waitlist/leave?done=1");
+    assert!(t.signup_row(&email).await.is_none());
+}
+
+#[tokio::test]
+async fn leave_with_a_bad_token_on_either_path() {
+    let t = test_app().await;
+    for bad in ["", "forged", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"] {
+        let res = t.get(&format!("/waitlist/leave?token={bad}")).await;
+        assert_eq!(res.status, StatusCode::BAD_REQUEST, "GET {bad:?}");
+        assert!(res.body.contains("This link doesn’t work."));
+
+        let res = t.post_leave(bad, Some(BASE)).await;
+        assert_eq!(res.status, StatusCode::BAD_REQUEST, "form POST {bad:?}");
+        assert!(res.body.contains("This link doesn’t work."));
+
+        let req = Request::post(format!("/waitlist/leave?token={bad}").as_str())
+            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .body(Body::from("List-Unsubscribe=One-Click"))
+            .unwrap();
+        let res = t.send(req, random_ip()).await;
+        assert_eq!(res.status, StatusCode::BAD_REQUEST, "one-click {bad:?}");
+    }
+}
+
+#[tokio::test]
 async fn one_click_unsubscribe_needs_no_origin() {
     let t = test_app().await;
     let email = unique_email("oneclick");
     t.join(&email).await;
     let mail = t.mail_to(&email, 1).await;
     let leave = link(&mail[0].text, &format!("{BASE}/waitlist/leave?token="));
+    assert_eq!(
+        mail[0].unsubscribe_url.as_deref(),
+        Some(format!("{BASE}{leave}").as_str()),
+        "List-Unsubscribe points at the same URL"
+    );
     let req = Request::post(leave.as_str())
         .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
         .body(Body::from("List-Unsubscribe=One-Click"))
         .unwrap();
     let res = t.send(req, random_ip()).await;
     assert_eq!(res.status, StatusCode::OK);
+    assert!(res.body.contains("You’ve left the waitlist."));
     assert!(t.signup_row(&email).await.is_none());
 }
 
@@ -688,6 +764,7 @@ async fn every_page_renders() {
         ("/privacy", StatusCode::OK),
         ("/waitlist/confirm?token=x", StatusCode::BAD_REQUEST),
         ("/waitlist/leave?token=x", StatusCode::BAD_REQUEST),
+        ("/waitlist/leave?done=1", StatusCode::OK),
         ("/does-not-exist", StatusCode::NOT_FOUND),
     ] {
         let res = t.get(uri).await;
@@ -745,8 +822,10 @@ async fn every_page_renders() {
         let html = ConfirmPage::new(meta.clone(), o.into()).render().unwrap();
         assert_csp_clean(&html, o);
     }
-    for o in ["left", "invalid"] {
-        let html = LeavePage::new(meta.clone(), o.into()).render().unwrap();
+    for (o, token) in [("confirm", "t0k3n"), ("left", ""), ("invalid", "")] {
+        let html = LeavePage::new(meta.clone(), o.into(), token.into())
+            .render()
+            .unwrap();
         assert_csp_clean(&html, o);
     }
     for code in [400u16, 403, 404, 405, 408, 413, 422, 429, 500, 503] {
