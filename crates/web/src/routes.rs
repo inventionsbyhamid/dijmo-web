@@ -23,8 +23,8 @@ use crate::pages::{
 use crate::security::{ClientIp, json_error, same_origin, wants_json};
 use crate::state::AppState;
 
-const SITE_TITLE: &str = "Dijmo · Say what you want, and it’s done.";
-const SITE_DESCRIPTION: &str = "Dijmo is a video editor you talk to. Record your screen, camera, game and voice, say what you want, and post it. It runs on your computer, so your videos never leave it.";
+const SITE_TITLE: &str = "Dijmo: say what you want, and it’s done";
+const SITE_DESCRIPTION: &str = "Dijmo is a video editor you talk to. It runs on your computer, and your videos never leave it. Coming to Mac first, then Windows and Linux.";
 
 pub fn router(state: AppState) -> Router<AppState> {
     let static_files = ServiceBuilder::new()
