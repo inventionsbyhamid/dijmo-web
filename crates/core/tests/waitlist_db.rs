@@ -14,7 +14,9 @@ use uuid::Uuid;
 async fn pool() -> PgPool {
     let url = std::env::var("TEST_DATABASE_URL")
         .unwrap_or_else(|_| "postgres://localhost/dijmo_web_test".to_owned());
-    let pool = dijmo_core::connect_with(&url, 4).await.expect("test database");
+    let pool = dijmo_core::connect_with(&url, 4)
+        .await
+        .expect("test database");
     dijmo_core::migrate(&pool).await.expect("migrations");
     pool
 }
@@ -80,17 +82,28 @@ async fn join_confirm_leave_round_trip() {
     assert_eq!(stored_hash, keys::hash_token(&mail.token).to_vec());
 
     assert_eq!(
-        waitlist::confirm(&pool, &mail.token, &policy).await.unwrap(),
+        waitlist::confirm(&pool, &mail.token, &policy)
+            .await
+            .unwrap(),
         ConfirmOutcome::Confirmed
     );
     assert_eq!(
-        waitlist::confirm(&pool, &mail.token, &policy).await.unwrap(),
+        waitlist::confirm(&pool, &mail.token, &policy)
+            .await
+            .unwrap(),
         ConfirmOutcome::Already
     );
     // A confirmed address gets no more mail.
-    assert!(waitlist::issue_confirmation(&pool, signup_id).await.unwrap().is_none());
+    assert!(
+        waitlist::issue_confirmation(&pool, signup_id)
+            .await
+            .unwrap()
+            .is_none()
+    );
     assert_eq!(
-        waitlist::join(&pool, &email, &json!({}), None, &policy).await.unwrap(),
+        waitlist::join(&pool, &email, &json!({}), None, &policy)
+            .await
+            .unwrap(),
         JoinOutcome::AlreadyConfirmed
     );
 
@@ -98,7 +111,9 @@ async fn join_confirm_leave_round_trip() {
     assert!(!waitlist::leave(&pool, signup_id).await.unwrap());
     assert_eq!(unsent_jobs(&pool, signup_id).await, 0);
     assert_eq!(
-        waitlist::confirm(&pool, &mail.token, &policy).await.unwrap(),
+        waitlist::confirm(&pool, &mail.token, &policy)
+            .await
+            .unwrap(),
         ConfirmOutcome::Invalid
     );
 }
@@ -111,21 +126,26 @@ async fn duplicate_join_respects_cooldown_and_replaces_unsent_mail() {
     let email = unique_email("dup");
 
     let JoinOutcome::Queued { signup_id } =
-        waitlist::join(&pool, &email, &json!({}), None, &policy).await.unwrap()
+        waitlist::join(&pool, &email, &json!({}), None, &policy)
+            .await
+            .unwrap()
     else {
         panic!("queued");
     };
     // Same address, different case: still one signup, and within the cooldown.
     let shouted = EmailAddress::parse(&email.as_str().to_uppercase()).unwrap();
     assert_eq!(
-        waitlist::join(&pool, &shouted, &json!({}), None, &policy).await.unwrap(),
+        waitlist::join(&pool, &shouted, &json!({}), None, &policy)
+            .await
+            .unwrap(),
         JoinOutcome::CoolingDown
     );
-    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM waitlist_signups WHERE email = $1::citext")
-        .bind(email.as_str())
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    let count: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM waitlist_signups WHERE email = $1::citext")
+            .bind(email.as_str())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(count, 1);
 
     // After the cooldown, a new email replaces the unsent one.
@@ -135,7 +155,9 @@ async fn duplicate_join_respects_cooldown_and_replaces_unsent_mail() {
         .await
         .unwrap();
     assert_eq!(
-        waitlist::join(&pool, &email, &json!({}), None, &policy).await.unwrap(),
+        waitlist::join(&pool, &email, &json!({}), None, &policy)
+            .await
+            .unwrap(),
         JoinOutcome::Queued { signup_id }
     );
     assert_eq!(unsent_jobs(&pool, signup_id).await, 1);
@@ -149,30 +171,46 @@ async fn expired_and_invalid_tokens() {
     let policy = Policy::default();
     let email = unique_email("expired");
     let JoinOutcome::Queued { signup_id } =
-        waitlist::join(&pool, &email, &json!({}), None, &policy).await.unwrap()
+        waitlist::join(&pool, &email, &json!({}), None, &policy)
+            .await
+            .unwrap()
     else {
         panic!("queued");
     };
-    let mail = waitlist::issue_confirmation(&pool, signup_id).await.unwrap().unwrap();
-    sqlx::query("UPDATE waitlist_signups SET token_created_at = now() - interval '73 hours' WHERE id = $1")
-        .bind(signup_id)
-        .execute(&pool)
+    let mail = waitlist::issue_confirmation(&pool, signup_id)
         .await
+        .unwrap()
         .unwrap();
+    sqlx::query(
+        "UPDATE waitlist_signups SET token_created_at = now() - interval '73 hours' WHERE id = $1",
+    )
+    .bind(signup_id)
+    .execute(&pool)
+    .await
+    .unwrap();
     assert_eq!(
-        waitlist::confirm(&pool, &mail.token, &policy).await.unwrap(),
+        waitlist::confirm(&pool, &mail.token, &policy)
+            .await
+            .unwrap(),
         ConfirmOutcome::Expired
     );
 
     // A re-issued token (a new signup request) works again.
-    let fresh = waitlist::issue_confirmation(&pool, signup_id).await.unwrap().unwrap();
+    let fresh = waitlist::issue_confirmation(&pool, signup_id)
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(
-        waitlist::confirm(&pool, &mail.token, &policy).await.unwrap(),
+        waitlist::confirm(&pool, &mail.token, &policy)
+            .await
+            .unwrap(),
         ConfirmOutcome::Invalid,
         "the old link is replaced"
     );
     assert_eq!(
-        waitlist::confirm(&pool, &fresh.token, &policy).await.unwrap(),
+        waitlist::confirm(&pool, &fresh.token, &policy)
+            .await
+            .unwrap(),
         ConfirmOutcome::Confirmed
     );
 
@@ -192,7 +230,9 @@ async fn outbox_claim_retry_send_and_prune() {
     let policy = Policy::default();
     let email = unique_email("outbox");
     let JoinOutcome::Queued { signup_id } =
-        waitlist::join(&pool, &email, &json!({}), None, &policy).await.unwrap()
+        waitlist::join(&pool, &email, &json!({}), None, &policy)
+            .await
+            .unwrap()
     else {
         panic!("queued");
     };
@@ -202,19 +242,28 @@ async fn outbox_claim_retry_send_and_prune() {
         .await
         .unwrap();
 
-    let claimed = outbox::claim(&pool, 10_000, Duration::from_secs(60)).await.unwrap();
-    let job = claimed.iter().find(|j| j.id == job_id).expect("our job is due");
+    let claimed = outbox::claim(&pool, 10_000, Duration::from_secs(60))
+        .await
+        .unwrap();
+    let job = claimed
+        .iter()
+        .find(|j| j.id == job_id)
+        .expect("our job is due");
     assert_eq!(job.kind, outbox::KIND_WAITLIST_CONFIRM);
     assert_eq!(job.signup_id, Some(signup_id));
     assert_eq!(job.attempts, 1);
     // Leased: a second claim does not see it.
-    let again = outbox::claim(&pool, 10_000, Duration::from_secs(60)).await.unwrap();
+    let again = outbox::claim(&pool, 10_000, Duration::from_secs(60))
+        .await
+        .unwrap();
     assert!(again.iter().all(|j| j.id != job_id));
 
     outbox::mark_retry(&pool, job_id, Duration::from_secs(3600), "provider down")
         .await
         .unwrap();
-    let again = outbox::claim(&pool, 10_000, Duration::from_secs(60)).await.unwrap();
+    let again = outbox::claim(&pool, 10_000, Duration::from_secs(60))
+        .await
+        .unwrap();
     assert!(again.iter().all(|j| j.id != job_id), "not due for an hour");
 
     outbox::mark_sent(&pool, job_id).await.unwrap();
@@ -226,12 +275,22 @@ async fn outbox_claim_retry_send_and_prune() {
         .execute(&pool)
         .await
         .unwrap();
-    sqlx::query("UPDATE waitlist_signups SET last_enqueued_at = now() - interval '31 days' WHERE id = $1")
-        .bind(signup_id)
-        .execute(&pool)
-        .await
-        .unwrap();
-    assert!(outbox::prune_finished(&pool, Duration::from_secs(30 * 86400)).await.unwrap() >= 1);
+    sqlx::query(
+        "UPDATE waitlist_signups SET last_enqueued_at = now() - interval '31 days' WHERE id = $1",
+    )
+    .bind(signup_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+    assert!(
+        outbox::prune_finished(&pool, Duration::from_secs(30 * 86400))
+            .await
+            .unwrap()
+            >= 1
+    );
     assert!(waitlist::prune_unconfirmed(&pool, &policy).await.unwrap() >= 1);
-    assert!(!waitlist::leave(&pool, signup_id).await.unwrap(), "already pruned");
+    assert!(
+        !waitlist::leave(&pool, signup_id).await.unwrap(),
+        "already pruned"
+    );
 }

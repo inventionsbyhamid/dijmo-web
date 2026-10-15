@@ -20,9 +20,10 @@ impl EmailAddress {
         if local.is_empty() || local.len() > 64 || domain.contains('@') {
             return None;
         }
-        let local_ok = local.chars().all(|c| {
-            c.is_alphanumeric() || "!#$%&'*+-/=?^_`{|}~.".contains(c)
-        }) && !local.starts_with('.')
+        let local_ok = local
+            .chars()
+            .all(|c| c.is_alphanumeric() || "!#$%&'*+-/=?^_`{|}~.".contains(c))
+            && !local.starts_with('.')
             && !local.ends_with('.')
             && !local.contains("..");
         if !local_ok {
@@ -112,7 +113,10 @@ mod tests {
             "<a>@b.com",
             "a@b.com\r\nBcc: x@y.com",
         ] {
-            assert!(EmailAddress::parse(bad).is_none(), "{bad:?} should be rejected");
+            assert!(
+                EmailAddress::parse(bad).is_none(),
+                "{bad:?} should be rejected"
+            );
         }
         let long = format!("{}@example.com", "a".repeat(65));
         assert!(EmailAddress::parse(&long).is_none());

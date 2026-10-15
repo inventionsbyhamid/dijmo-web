@@ -13,3 +13,18 @@ path = "src/main.rs"
 
 [dependencies]
 dijmo-core.workspace = true
+axum.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+askama.workspace = true
+tokio.workspace = true
+reqwest.workspace = true
+sqlx.workspace = true
+uuid.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+sha2.workspace = true
+url.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

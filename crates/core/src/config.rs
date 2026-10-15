@@ -136,7 +136,11 @@ impl Config {
     /// Reads the configuration through `lookup` (the environment, or a map in tests).
     /// Empty values count as unset.
     pub fn from_lookup(lookup: impl Fn(&str) -> Option<String>) -> Result<Self, ConfigError> {
-        let get = |name: &str| lookup(name).map(|v| v.trim().to_owned()).filter(|v| !v.is_empty());
+        let get = |name: &str| {
+            lookup(name)
+                .map(|v| v.trim().to_owned())
+                .filter(|v| !v.is_empty())
+        };
         let require = |name: &'static str| get(name).ok_or(ConfigError::Missing(name));
 
         let database_url = require("DATABASE_URL")?;
@@ -154,7 +158,10 @@ impl Config {
         };
 
         let resend_key = get("RESEND_API_KEY");
-        let email_provider = match get("EMAIL_PROVIDER").as_deref().map(str::to_ascii_lowercase) {
+        let email_provider = match get("EMAIL_PROVIDER")
+            .as_deref()
+            .map(str::to_ascii_lowercase)
+        {
             Some(p) if p == "log" => EmailProvider::Log,
             Some(p) if p == "resend" => EmailProvider::Resend {
                 api_key: resend_key.ok_or(ConfigError::Missing("RESEND_API_KEY"))?,
@@ -172,7 +179,10 @@ impl Config {
             (EmailProvider::Resend { .. }, None) => return Err(ConfigError::Missing("EMAIL_FROM")),
         };
         if email_from.contains(['\r', '\n']) || !email_from.contains('@') {
-            return Err(invalid("EMAIL_FROM", "must be an address like `Dijmo <hello@example.com>`"));
+            return Err(invalid(
+                "EMAIL_FROM",
+                "must be an address like `Dijmo <hello@example.com>`",
+            ));
         }
 
         let proxy_hops = match get("PROXY_HOPS") {
@@ -276,7 +286,10 @@ mod tests {
             ("SECRET_KEY", k.as_str()),
             ("RESEND_API_KEY", "re_secret"),
         ];
-        assert!(matches!(cfg(&base), Err(ConfigError::Missing("EMAIL_FROM"))));
+        assert!(matches!(
+            cfg(&base),
+            Err(ConfigError::Missing("EMAIL_FROM"))
+        ));
         let mut with_from = base.to_vec();
         with_from.push(("EMAIL_FROM", "Dijmo <hello@dijmo.example>"));
         let c = cfg(&with_from).unwrap();
@@ -295,7 +308,13 @@ mod tests {
                 ("PUBLIC_BASE_URL", "https://dijmo.example"),
                 ("SECRET_KEY", bad),
             ]);
-            assert!(matches!(r, Err(ConfigError::Invalid { name: "SECRET_KEY", .. })));
+            assert!(matches!(
+                r,
+                Err(ConfigError::Invalid {
+                    name: "SECRET_KEY",
+                    ..
+                })
+            ));
         }
     }
 
@@ -311,7 +330,9 @@ mod tests {
         assert!(BaseUrl::parse("ftp://x.example").is_err());
         assert!(BaseUrl::parse("https://x.example/?q=1").is_err());
         assert_eq!(
-            BaseUrl::parse("https://x.example/").unwrap().join("/privacy"),
+            BaseUrl::parse("https://x.example/")
+                .unwrap()
+                .join("/privacy"),
             "https://x.example/privacy"
         );
     }

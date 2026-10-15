@@ -193,7 +193,10 @@ mod tests {
         assert_eq!(keys(2).verify_leave_token(&t), None, "other secret");
         let mut bad = t.into_bytes();
         bad[40] = if bad[40] == b'A' { b'B' } else { b'A' };
-        assert_eq!(k.verify_leave_token(std::str::from_utf8(&bad).unwrap()), None);
+        assert_eq!(
+            k.verify_leave_token(std::str::from_utf8(&bad).unwrap()),
+            None
+        );
         assert_eq!(k.verify_leave_token("nope"), None);
     }
 
