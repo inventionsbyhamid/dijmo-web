@@ -486,13 +486,11 @@ main > section:not(.hero) {
   transform-origin: left center;
 }
 .problem__after { display: grid; gap: clamp(18px, 3vh, 28px); }
-.cmd--quiet {
-  margin-top: 0;
+.cmd--answer {
+  margin-top: clamp(4px, 1vh, 12px);
   padding-right: 0;
-  font-size: var(--t-lede);
-  color: var(--quiet);
 }
-.problem .cmd--quiet { display: none; }
+.problem .cmd--answer { display: none; }
 
 .turn {
   min-height: 92svh;
@@ -569,9 +567,9 @@ main > section:not(.hero) {
 }
 
 /* Say it: a request, a one-line preview, and two quiet text buttons. */
-.ask { display: grid; gap: 16px; }
+.ask { display: grid; gap: 18px; }
 .ask__line {
-  font-size: var(--t-line);
+  font-size: clamp(1.625rem, 1.1rem + 2vw, 2.5rem);
   font-weight: 500;
   letter-spacing: -.02em;
   line-height: 1.3;
@@ -579,12 +577,12 @@ main > section:not(.hero) {
   white-space: nowrap;
 }
 .ask__preview {
-  font-size: var(--t-lede);
+  font-size: clamp(1.125rem, 1rem + .6vw, 1.5rem);
   line-height: 1.4;
   font-variant-numeric: tabular-nums;
   transition: opacity .4s var(--ease-out);
 }
-.ask__actions { display: flex; gap: 24px; font-size: 1rem; font-weight: 500; }
+.ask__actions { display: flex; gap: 28px; font-size: 1.125rem; font-weight: 500; }
 .ask__btn {
   color: var(--quiet);
   text-decoration: underline;
@@ -618,7 +616,7 @@ main > section:not(.hero) {
   right: 9%;
   bottom: 12%;
   text-align: center;
-  font-size: max(11px, 10cqmin);
+  font-size: max(12px, 10.5cqmin);
   font-weight: 700;
   line-height: 1.12;
   letter-spacing: -.015em;
@@ -881,6 +879,15 @@ main > section:not(.hero) {
   max-width: 38ch;
 }
 .note-page__next { margin-top: 10px; font-size: var(--t-lede); font-weight: 500; }
+.note-page__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 28px;
+  margin-top: 14px;
+  font-size: var(--t-lede);
+  font-weight: 500;
+}
 
 .prose {
   width: var(--w);
@@ -962,8 +969,8 @@ main > section:not(.hero) {
   .js .problem.is-on .pile li:nth-child(4) { transition-delay: 1s; }
   .js .problem.is-on .pile li:nth-child(5) { transition-delay: 1.25s; }
   .js .problem.is-on .problem__after > .say { transition: opacity .9s var(--ease-out) 1.9s, transform .9s var(--ease-out) 1.9s; }
-  .js .problem .cmd--quiet { display: flex; opacity: 0; transition: opacity .3s; }
-  .js .problem.is-asking .cmd--quiet { opacity: 1; }
+  .js .problem .cmd--answer { display: flex; opacity: 0; transition: opacity .3s; }
+  .js .problem.is-asking .cmd--answer { opacity: 1; }
   .js .problem.is-struck .pile li::after { transform: none; transition: transform .26s var(--ease-out); }
   .js .problem.is-struck .pile li:nth-child(2)::after { transition-delay: .12s; }
   .js .problem.is-struck .pile li:nth-child(3)::after { transition-delay: .24s; }

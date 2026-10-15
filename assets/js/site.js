@@ -269,7 +269,7 @@ const moments = {
   async problem(el) {
     [250, 500, 750, 1000, 1250].forEach((ms) => at(ms + 60, () => Sound.key(0.5)));
     at(1950, () => Sound.tick(0.6));
-    const line = el.querySelector('.cmd--quiet [data-cmd]');
+    const line = el.querySelector('.cmd--answer [data-cmd]');
     const pile = el.querySelector('[data-pile]');
     if (still || !line || !pile) return;
     // One typed command clears the jargon: a first glimpse of the answer.
