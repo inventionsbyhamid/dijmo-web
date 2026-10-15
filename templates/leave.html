@@ -2,7 +2,15 @@
 {% block head %}<meta name="robots" content="noindex">{% endblock %}
 {% block body %}
 <section class="note-page">
-  {%- if outcome == "left" %}
+  {%- if outcome == "confirm" %}
+  <h1 class="note-page__title">Leave the waitlist?</h1>
+  <p class="note-page__body">We’ll remove your email, and you won’t hear from us again.</p>
+  <form class="note-page__form" method="post" action="/waitlist/leave">
+    <input type="hidden" name="token" value="{{ token }}">
+    <button class="entry__send" type="submit">Leave the waitlist</button>
+    <a class="text-link" href="{{ base_url }}/">Stay on the list</a>
+  </form>
+  {%- else if outcome == "left" %}
   <h1 class="note-page__title">You’ve left the waitlist.</h1>
   <p class="note-page__body">We’ve removed your email. You won’t hear from us again.</p>
   <p class="note-page__next"><a class="text-link" href="{{ base_url }}/#join">Changed your mind? Join again</a></p>
