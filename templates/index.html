@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block body %}
 <section class="hero" aria-labelledby="hero-title">
-  <div class="hero__copy">
-    <h1 class="hero__title" id="hero-title">Say what you want, and it’s done.</h1>
-    <p class="hero__lede">Dijmo is a video editor you talk to.</p>
+  <h1 class="hero__title" id="hero-title">Say what you want, and it’s done.</h1>
+  <div class="hero__side">
+    <p class="hero__lede">Dijmo is a video editor you talk to, made for people who aren’t editors.</p>
     <a class="hero__join" href="#join">Join the waitlist</a>
   </div>
 
@@ -31,7 +31,7 @@
   </div>
 </section>
 
-<section class="problem" data-moment aria-labelledby="problem-title">
+<section class="problem" data-moment="problem" aria-labelledby="problem-title">
   <h2 class="say" id="problem-title">You have something worth showing.</h2>
   <p class="say">Then the software asks you to become an editor first.</p>
   <ul class="pile" role="list">
@@ -43,14 +43,14 @@
   <p class="say">So most videos never get made.</p>
 </section>
 
-<section class="turn" data-moment aria-labelledby="turn-title">
+<section class="turn" data-moment="turn" aria-labelledby="turn-title">
   <h2 class="turn__q" id="turn-title" data-type>What if editing were as simple as saying it?</h2>
 </section>
 
 <section class="product" aria-labelledby="product-title">
   <h2 class="say product__title" id="product-title">Meet Dijmo.</h2>
   <ol class="beats" role="list">
-    <li class="beat beat--record" data-moment>
+    <li class="beat beat--record" data-moment="record">
       <div class="beat__text">
         <h3 class="beat__verb">Record.</h3>
         <p>Screen, camera, game and voice. Each stays on its own track, so you can change it later.</p>
@@ -64,7 +64,7 @@
         </div>
       </div>
     </li>
-    <li class="beat beat--say" data-moment>
+    <li class="beat beat--say" data-moment="say">
       <div class="beat__text">
         <h3 class="beat__verb">Say it.</h3>
         <p>Type what you want, in your own words. You see every edit before it happens, and you can always undo it.</p>
@@ -79,7 +79,7 @@
         </div>
       </div>
     </li>
-    <li class="beat beat--post" data-moment>
+    <li class="beat beat--post" data-moment="post">
       <div class="beat__text">
         <h3 class="beat__verb">Post it.</h3>
         <p>Vertical, square and wide, all from one project. Ready for TikTok, Instagram and YouTube.</p>
@@ -95,14 +95,14 @@
   </ol>
 </section>
 
-<section class="promise" data-moment aria-labelledby="promise-title">
+<section class="promise" data-moment="promise" aria-labelledby="promise-title">
   <h2 class="say promise__line" id="promise-title">Everything runs on your computer. Even the AI.</h2>
   <p class="say promise__line">Your videos never leave it.</p>
   <p class="say promise__line promise__line--instant">It opens instantly.</p>
   <p class="quiet promise__note">And it stays smooth, even on older Macs.</p>
 </section>
 
-<section class="outcome" data-moment aria-labelledby="outcome-title">
+<section class="outcome" data-moment="outcome" aria-labelledby="outcome-title">
   <div class="rail" aria-hidden="true"><span class="rail__fill"></span></div>
   <h2 class="say" id="outcome-title">Your ideas, finished.</h2>
   <p class="say outcome__after">The videos you meant to make.</p>
