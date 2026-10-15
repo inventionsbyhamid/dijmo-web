@@ -25,6 +25,32 @@ const store = {
 let touched = false;
 for (const t of ['pointerdown', 'keydown', 'touchstart']) addEventListener(t, () => { touched = true; }, { capture: true, passive: true });
 
+/* -- in view: a demo's own sounds and typing hold while it is off-screen or the tab is hidden -- */
+
+const seen = new WeakSet();
+let holds = [];
+const recheck = () => {
+  const h = holds;
+  holds = [];
+  h.forEach((r) => r());
+  Sound.hush();
+};
+const view = 'IntersectionObserver' in window && new IntersectionObserver((es) => {
+  for (const e of es) {
+    if (e.isIntersecting) seen.add(e.target);
+    else seen.delete(e.target);
+  }
+  recheck();
+});
+d.addEventListener('visibilitychange', recheck);
+const watch = (el) => { if (view) view.observe(el); };
+const live = (el) => !d.hidden && (!view || seen.has(el));
+// Sleeps, then waits while `el` is out of view, the tab is hidden, or `stop()` says so.
+const hold = async (el, ms, stop) => {
+  await sleep(ms);
+  while (!live(el) || (stop && stop())) await new Promise((r) => holds.push(r));
+};
+
 /* -- sound -- */
 
 const Sound = (() => {
@@ -40,6 +66,7 @@ const Sound = (() => {
   let on = store.get(KEY) === 'on';
   let ctx; let master; let buffer; let noise; let bytes; let decoding;
   let failed = false; let shift = 0; let last = -1; let voices = 0;
+  const playing = new Set(); // demo voices, stopped the moment their demo leaves view
 
   const get = (url) => fetch(url).then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); });
   // Fetch early (no audio context needed); decode after a gesture.
@@ -116,8 +143,10 @@ const Sound = (() => {
     else { click(0.45, rand(1900, 3000), 1.3, 0.045); body(0.1, rand(170, 220), 90, 0.05); }
   }
 
-  function play(name, gain, rate) {
-    if (!on || !ctx || ctx.state !== 'running' || voices > 14) return;
+  // `from` is the demo a sound belongs to: it plays only while that demo is in view. The
+  // visitor's own sounds pass no `from` and always play.
+  function play(name, gain, rate, from) {
+    if (!on || !ctx || ctx.state !== 'running' || voices > 14 || (from && !live(from))) return;
     if (!buffer) { if (failed) synth(name[0] === 'k' ? 'key' : name, gain, rate); return; }
     const [at, dur] = MAP[name];
     const s = ctx.createBufferSource();
@@ -127,7 +156,8 @@ const Sound = (() => {
     g.gain.value = gain;
     s.connect(g).connect(master);
     voices++;
-    s.onended = () => { voices--; };
+    if (from) { s.from = from; playing.add(s); }
+    s.onended = () => { voices--; playing.delete(s); };
     s.start(ctx.currentTime, Math.max(0, at + shift - 0.003), dur + 0.01);
   }
 
@@ -148,14 +178,15 @@ const Sound = (() => {
       else if (ctx && ctx.state === 'running') ctx.suspend().catch(() => {});
     },
     ready() { wake(); return decoding || Promise.resolve(); },
-    key(soft = 1) {
+    hush() { for (const s of playing) if (!live(s.from)) s.stop(); },
+    key(soft = 1, from) {
       let i = Math.floor(Math.random() * 8);
       if (i === last) i = (i + 1 + Math.floor(Math.random() * 7)) % 8; // never the same key twice
       last = i;
-      play(`k${i}`, soft * rand(0.85, 1.15), rand(0.96, 1.04));
+      play(`k${i}`, soft * rand(0.85, 1.15), rand(0.96, 1.04), from);
     },
-    thock: (soft = 1) => play('thock', soft * rand(0.92, 1.05), rand(0.97, 1.02)),
-    tick: (soft = 1) => play('tick', 0.42 * soft * rand(0.85, 1.15), rand(0.95, 1.05)),
+    thock: (soft = 1, from) => play('thock', soft * rand(0.92, 1.05), rand(0.97, 1.02), from),
+    tick: (soft = 1, from) => play('tick', 0.42 * soft * rand(0.85, 1.15), rand(0.95, 1.05), from),
   };
 })();
 
@@ -218,7 +249,7 @@ function typer(node) {
   const chars = Array.from(text, (c) => shown.appendChild(make('span', 'ch', c)));
   node.replaceChildren(make('span', 'sr-only', text), shown);
   return {
-    async run(soft) {
+    async run(soft, from) {
       if (still) {
         for (const s of chars) s.classList.add('on');
         shown.append(caret);
@@ -229,21 +260,21 @@ function typer(node) {
       for (const s of chars) {
         s.classList.add('on');
         s.after(caret);
-        if (s.textContent !== ' ') Sound.key(soft);
-        await sleep(pause(s.textContent));
+        if (s.textContent !== ' ') Sound.key(soft, from);
+        await hold(from, pause(s.textContent));
       }
       node.classList.remove('is-typing');
     },
   };
 }
 
-// A command line that types itself, key by key.
-async function typeInto(el, text, soft, wait = sleep) {
+// A command line that types itself, key by key; `from` is the demo it belongs to.
+async function typeInto(el, text, soft, from, wait = (ms) => hold(from, ms)) {
   const line = el.parentElement;
   line.classList.add('is-typing');
   for (let i = 1; i <= text.length; i++) {
     el.textContent = text.slice(0, i);
-    if (text[i - 1] !== ' ') Sound.key(soft);
+    if (text[i - 1] !== ' ') Sound.key(soft, from);
     await wait(pause(text[i - 1]));
   }
   line.classList.remove('is-typing');
@@ -267,21 +298,21 @@ const at = (ms, fn) => { if (!still) setTimeout(fn, ms); };
 
 const moments = {
   async problem(el) {
-    [250, 500, 750, 1000, 1250].forEach((ms) => at(ms + 60, () => Sound.key(0.5)));
-    at(1950, () => Sound.tick(0.6));
+    [250, 500, 750, 1000, 1250].forEach((ms) => at(ms + 60, () => Sound.key(0.5, el)));
+    at(1950, () => Sound.tick(0.6, el));
     const line = el.querySelector('.cmd--answer [data-cmd]');
     const pile = el.querySelector('[data-pile]');
     if (still || !line || !pile) return;
     // One typed command clears the jargon: a first glimpse of the answer.
-    await sleep(3000);
+    await hold(el, 3000);
     el.classList.add('is-asking');
-    await sleep(300);
-    await typeInto(line, 'make it simple', 0.45);
-    await sleep(420);
-    Sound.thock(0.45);
+    await hold(el, 300);
+    await typeInto(line, 'make it simple', 0.45, el);
+    await hold(el, 420);
+    Sound.thock(0.45, el);
     el.classList.add('is-struck');
-    [0, 120, 240, 360, 480].forEach((ms) => setTimeout(() => Sound.tick(0.5), ms + 80));
-    await sleep(1100);
+    [0, 120, 240, 360, 480].forEach((ms) => setTimeout(() => Sound.tick(0.5, el), ms + 80));
+    await hold(el, 1100);
     const gap = parseFloat(getComputedStyle(el).rowGap) || 0;
     el.style.setProperty('--fold', `${pile.offsetHeight + gap}px`);
     el.classList.add('is-folded');
@@ -289,36 +320,36 @@ const moments = {
   async turn(el) {
     const t = typerIn(el, '[data-type]');
     if (still) { t.run(); return; }
-    await sleep(250);
-    await t.run(0.6);
-    await sleep(420);
-    Sound.thock(0.5); // the question lands like Enter
+    await hold(el, 250);
+    await t.run(0.6, el);
+    await hold(el, 420);
+    Sound.thock(0.5, el); // the question lands like Enter
   },
-  record() {
-    [300, 600, 900, 1200].forEach((ms) => at(ms + 40, () => { Sound.tick(0.6); Sound.key(0.22); }));
+  record(el) {
+    [300, 600, 900, 1200].forEach((ms) => at(ms + 40, () => { Sound.tick(0.6, el); Sound.key(0.22, el); }));
   },
   async say(el) {
-    await typerIn(el, '[data-ask]').run(0.45);
+    await typerIn(el, '[data-ask]').run(0.45, el);
     if (still) return;
-    await sleep(450);
+    await hold(el, 450);
     el.classList.add('is-preview');
-    Sound.tick(0.45);
-    await sleep(1400);
+    Sound.tick(0.45, el);
+    await hold(el, 1400);
     el.classList.add('is-done');
-    Sound.key(0.8);
-    await sleep(260);
+    Sound.key(0.8, el);
+    await hold(el, 260);
     const preview = el.querySelector('[data-preview]');
     if (preview) preview.textContent = '14 pauses cut. 0:41 shorter.';
-    Sound.tick(0.6);
+    Sound.tick(0.6, el);
   },
-  post() {
-    [700, 1000, 1300].forEach((ms) => at(ms, () => Sound.tick(0.55)));
+  post(el) {
+    [700, 1000, 1300].forEach((ms) => at(ms, () => Sound.tick(0.55, el)));
   },
-  promise() {
-    at(2300, () => Sound.key(0.85));
+  promise(el) {
+    at(2300, () => Sound.key(0.85, el));
   },
-  outcome() {
-    at(1700, () => Sound.tick());
+  outcome(el) {
+    at(1700, () => Sound.tick(1, el));
   },
 };
 
@@ -338,7 +369,7 @@ if ('IntersectionObserver' in window) {
       fire(e.target);
     }
   }, { rootMargin: '0px 0px -30% 0px' });
-  momentEls.forEach((el) => io.observe(el));
+  momentEls.forEach((el) => { watch(el); io.observe(el); });
 } else {
   momentEls.forEach(fire);
 }
@@ -426,26 +457,16 @@ function takeDemo(take) {
   if (window.ResizeObserver) new ResizeObserver(() => settle()).observe(box);
   if (d.fonts && d.fonts.ready) d.fonts.ready.then(settle);
 
-  // Pausing: the Pause button, off-screen, or a hidden tab.
+  // Pausing: the Pause button, off-screen, or a hidden tab (see `hold`).
   let paused = false;
-  let visible = true;
-  let release = null;
-  const blocked = () => paused || !visible || d.hidden;
-  const resume = () => { if (release && !blocked()) { const r = release; release = null; r(); } };
-  const wait = async (ms) => {
-    await sleep(ms);
-    while (blocked()) await new Promise((r) => { release = r; });
-  };
-  if ('IntersectionObserver' in window) {
-    new IntersectionObserver(([e]) => { visible = e.isIntersecting; resume(); }).observe(take);
-  }
-  d.addEventListener('visibilitychange', resume);
+  watch(take);
+  const wait = (ms) => hold(take, ms, () => paused);
   if (toggle) {
     toggle.hidden = false;
     toggle.addEventListener('click', () => {
       paused = !paused;
       toggle.textContent = paused ? 'Play the demo' : 'Pause the demo';
-      resume();
+      recheck();
     });
   }
 
@@ -458,7 +479,7 @@ function takeDemo(take) {
     ['cut the ums', async () => {
       for (const it of items.filter((i) => i.f && !i.gone)) {
         it.v.classList.add('is-struck');
-        Sound.tick(0.7);
+        Sound.tick(0.7, take);
         tap();
         await wait(220);
         it.v.classList.add('is-out');
@@ -474,7 +495,7 @@ function takeDemo(take) {
         it.sx = 0.001;
         it.v.style.transform = pos(it);
         it.v.classList.add('is-out');
-        Sound.key(0.35);
+        Sound.key(0.35, take);
         tap();
         await wait(200);
         drop(it);
@@ -486,7 +507,7 @@ function takeDemo(take) {
     ['make it 30 seconds', async () => {
       const weak = items.filter((i) => i.k && !i.gone);
       weak.forEach((it) => it.v.classList.add('is-out'));
-      Sound.tick(0.5);
+      Sound.tick(0.5, take);
       await wait(560);
       weak.forEach(drop);
       place();
@@ -520,7 +541,7 @@ function takeDemo(take) {
       place();
       void box.offsetWidth;
       for (const it of back) it.v.style.transition = '';
-      Sound.tick(0.5);
+      Sound.tick(0.5, take);
       showTime(FULL);
       await wait(320);
       for (const it of back) it.v.classList.remove('is-out');
@@ -531,9 +552,9 @@ function takeDemo(take) {
     await wait(900);
     for (;;) {
       for (const [say, act, back] of steps) {
-        await typeInto(cmd, say, 0.4, wait);
+        await typeInto(cmd, say, 0.4, take, wait);
         await wait(rand(380, 520));
-        Sound.thock(0.45);
+        Sound.thock(0.45, take);
         await act();
         await wait(back ? 1900 : 1500);
         await erase(cmd, wait);

@@ -73,6 +73,10 @@ cut the ums▌                                       Pause the demo
 - **Haptics:**
   - The visitor's own keys tap 5 ms, Enter 18 ms (or the iPhone switch), and each section's detent 3 ms.
   - Demo cuts tap 4 ms, but only once the visitor has touched the page and turned sound on, so a silent visitor is never buzzed.
+- **Only in view:** a demo's sounds belong to it. The hero's transcript and each story moment play their keys, ticks and thocks only while they are on screen and the tab is visible.
+  - Scroll one out of view, or hide the tab, and its sounds stop at once (even a key already sounding) and its typing pauses, so sound and motion stay in step and nothing runs unseen.
+  - Bring it back, and it carries on where it stopped. With sound off, it carries on silently.
+  - One IntersectionObserver and `visibilitychange` drive this (`hold` and `live` in `site.js`). The visitor's own sounds, and the sound setting itself, are untouched.
 
 ## Review against the generic tells
 - **Avoided:** cream and serif, acid-on-black, the broadsheet look, the card kit, eyebrows, middle dots, mono labels, arrows, and fade-up on everything.
