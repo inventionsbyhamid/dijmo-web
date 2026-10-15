@@ -1,7 +1,7 @@
 //! `dijmo-web`: serves the site. `dijmo-web --healthcheck` probes a running
 //! server's `/healthz` (for Docker's HEALTHCHECK; the runtime image has no curl).
 
-use std::io::{Read, Write};
+use std::io::{IsTerminal, Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::process::ExitCode;
 use std::sync::Arc;
@@ -80,7 +80,11 @@ fn init_tracing() {
             .with_env_filter(filter)
             .init();
     } else {
-        tracing_subscriber::fmt().with_env_filter(filter).init();
+        // Colour only on a terminal, so log files stay plain text.
+        tracing_subscriber::fmt()
+            .with_ansi(std::io::stdout().is_terminal())
+            .with_env_filter(filter)
+            .init();
     }
 }
 
