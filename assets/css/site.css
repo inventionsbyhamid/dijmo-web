@@ -494,6 +494,10 @@ ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
   text-underline-offset: .25em;
 }
 .demo-toggle:hover { color: var(--ink); text-decoration-color: currentColor; }
+@media (max-width: 599px) {
+  .line { padding-right: 0; }
+  .demo-toggle { position: static; display: block; margin: 2px 0 0 auto; }
+}
 
 /* ---------- story sections ---------- */
 
@@ -807,7 +811,7 @@ main > section:not(.hero) {
   -webkit-appearance: none;
   appearance: none;
 }
-.entry__input::placeholder { color: var(--quiet); opacity: .75; }
+.entry__input::placeholder { color: var(--quiet); opacity: 1; }
 .entry__input:focus { outline: none; }
 .entry__input:focus-visible { outline: none; }
 .entry__field:has(.entry__input:focus-visible) {
